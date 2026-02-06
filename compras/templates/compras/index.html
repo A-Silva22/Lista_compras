@@ -1,0 +1,502 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bora às compras!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #111;
+            color: #ccc;
+            min-height: 100vh;
+            padding: 0;
+            padding-bottom: 90px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px 12px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 18px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Section titles ── */
+        .section-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #999;
+            margin-bottom: 8px;
+            padding-left: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .count {
+            background-color: #333;
+            color: #aaa;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 10px;
+        }
+
+        /* ── Item lists ── */
+        .item-list {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .despensa-wrapper {
+            /* max-height: 45vh; */
+            /* overflow-y: auto; */
+            margin-bottom: 20px;
+            border-radius: 12px;
+            /* scrollbar-width: thin; */
+            /* scrollbar-color: #333 #1a1a1a; */
+        }
+
+        /* .despensa-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .despensa-wrapper::-webkit-scrollbar-track {
+            background: #1a1a1a;
+            border-radius: 3px;
+        }
+
+        .despensa-wrapper::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 3px;
+        } */
+
+        .item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: #141414;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+        }
+
+        .toggle-form {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            display: block;
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            font-size: 1.1rem;
+            color: #ccc;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+        }
+
+        .item-name:active {
+            opacity: 0.6;
+        }
+
+        .item.despensa-item .item-name {
+            color: #888;
+        }
+
+        /* ── Three-dots menu ── */
+        .menu-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .menu-btn {
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 8px;
+            background-color: transparent;
+            color: #777;
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 1px;
+        }
+
+        .menu-btn:active {
+            background-color: #222;
+        }
+
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 38px;
+            background-color: #222;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 4px 0;
+            z-index: 100;
+            min-width: 140px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+
+        .menu-dropdown.open {
+            display: block;
+        }
+
+        .menu-dropdown button {
+            display: block;
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #bbb;
+            font-size: 1rem;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .menu-dropdown button:active {
+            background-color: #333;
+        }
+
+        /* ── Add form (sticky bottom) ── */
+        .add-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #1a1a1a;
+            border-top: 1px solid #252525;
+            padding: 10px 12px;
+            z-index: 500;
+        }
+
+        .add-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .add-form input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            padding: 12px 14px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background-color: #222;
+            color: #ccc;
+            font-size: 1.05rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .add-form input[type="text"]:focus {
+            border-color: #555;
+        }
+
+        .add-form .btn-submit {
+            flex-shrink: 0;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 10px;
+            background-color: #e0e0e0;
+            color: #111;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .add-form .btn-submit:active {
+            background-color: #bbb;
+        }
+
+        /* ── Modals ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .modal h2 {
+            color: #ddd;
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background-color: #222;
+            color: #ccc;
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        .modal input:focus {
+            border-color: #555;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-cancel {
+            background-color: #2a2a2a;
+            color: #aaa;
+        }
+
+        .btn-save {
+            background-color: #e0e0e0;
+            color: #111;
+        }
+
+        .modal-delete-text {
+            color: #bbb;
+            font-size: 1.05rem;
+            margin-bottom: 16px;
+            word-break: break-word;
+        }
+
+        .btn-confirm-delete {
+            background-color: #555 !important;
+            color: #fff !important;
+        }
+
+        /* ── Empty state ── */
+        .empty-msg {
+            color: #444;
+            font-size: 1rem;
+            padding: 12px 4px;
+            font-style: italic;
+        }
+
+        /* ── Divider ── */
+        .divider {
+            border: none;
+            border-top: 1px solid #222;
+            margin: 8px 0 16px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛒 Bora às compras!</h1>
+
+        <!-- Artigos a comprar (unchecked = needs buying) -->
+        <div class="section-title">
+            Artigos a comprar
+            <span class="count">{{ a_comprar|length }}</span>
+        </div>
+        {% if a_comprar %}
+        <ul class="item-list">
+            {% for artigo in a_comprar %}
+            <li class="item">
+                <form class="toggle-form" method="POST" action="{% url 'toggle' artigo.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="item-name">{{ artigo.nome }}</button>
+                </form>
+                <div class="menu-wrapper">
+                    <button type="button" class="menu-btn" onclick="toggleMenu(this)">⋮</button>
+                    <div class="menu-dropdown">
+                        <button type="button" onclick="openEdit({{ artigo.pk }}, '{{ artigo.nome|escapejs }}', '{{ artigo.quantidade|escapejs }}')">✎ Editar</button>
+                        <button type="button" onclick="openDelete({{ artigo.pk }}, '{{ artigo.nome|escapejs }}')">✕ Apagar</button>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty-msg">Nenhum artigo para comprar.</p>
+        {% endif %}
+
+        <hr class="divider">
+
+        <!-- Despensa (checked = in stock) -->
+        <div class="section-title">
+            Despensa
+            <span class="count">{{ despensa|length }}</span>
+        </div>
+        <div class="despensa-wrapper">
+            {% if despensa %}
+            <ul class="item-list">
+                {% for artigo in despensa %}
+                <li class="item despensa-item">
+                    <form class="toggle-form" method="POST" action="{% url 'toggle' artigo.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="item-name">{{ artigo.nome }}</button>
+                    </form>
+                    <div class="menu-wrapper">
+                        <button type="button" class="menu-btn" onclick="toggleMenu(this)">⋮</button>
+                        <div class="menu-dropdown">
+                            <button type="button" onclick="openEdit({{ artigo.pk }}, '{{ artigo.nome|escapejs }}', '{{ artigo.quantidade|escapejs }}')">✎ Editar</button>
+                            <button type="button" onclick="openDelete({{ artigo.pk }}, '{{ artigo.nome|escapejs }}')">✕ Apagar</button>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-msg">Despensa vazia.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Add item bar (fixed at bottom) -->
+    <div class="add-bar">
+        <form class="add-form" method="POST" action="{% url 'adicionar' %}">
+            {% csrf_token %}
+            <input type="text" name="nome" placeholder="Novo artigo..." required autocomplete="off">
+            <button type="submit" class="btn-submit">+</button>
+        </form>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h2>Editar artigo</h2>
+            <form id="editForm" method="POST">
+                {% csrf_token %}
+                <input type="text" name="nome" id="editNome" placeholder="Nome do artigo" required>
+                <input type="text" name="quantidade" id="editQtd" placeholder="Quantidade (ex: 2x)">
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeEdit()">Cancelar</button>
+                    <button type="submit" class="btn-save">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <h2>Apagar artigo</h2>
+            <p class="modal-delete-text">Tem a certeza que deseja apagar? "<span id="deleteName"></span>"?</p>
+            <form id="deleteForm" method="POST">
+                {% csrf_token %}
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeDelete()">Cancelar</button>
+                    <button type="submit" class="btn-confirm-delete">Apagar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        /* Three-dots menu */
+        function toggleMenu(btn) {
+            var dropdown = btn.nextElementSibling;
+            var wasOpen = dropdown.classList.contains('open');
+            closeAllMenus();
+            if (!wasOpen) {
+                dropdown.classList.add('open');
+            }
+        }
+
+        function closeAllMenus() {
+            document.querySelectorAll('.menu-dropdown.open').forEach(function(m) {
+                m.classList.remove('open');
+            });
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.menu-wrapper')) {
+                closeAllMenus();
+            }
+        });
+
+        function openEdit(pk, nome, qtd) {
+            closeAllMenus();
+            document.getElementById('editForm').action = '/editar/' + pk + '/';
+            document.getElementById('editNome').value = nome;
+            document.getElementById('editQtd').value = qtd;
+            document.getElementById('editModal').classList.add('active');
+            document.getElementById('editNome').focus();
+        }
+
+        function closeEdit() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        function openDelete(pk, nome) {
+            closeAllMenus();
+            document.getElementById('deleteForm').action = '/apagar/' + pk + '/';
+            document.getElementById('deleteName').textContent = nome;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDelete() {
+            document.getElementById('deleteModal').classList.remove('active');
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

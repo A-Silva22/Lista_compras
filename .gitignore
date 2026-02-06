@@ -1,0 +1,36 @@
+# Virtual environment
+venv.lista/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Django
+db.sqlite3
+*.log
+staticfiles/
+media/
+
+# Migrations (optional — uncomment if you want to track migrations)
+# compras/migrations/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Accidental binary dumps
+django
+os
+sys
