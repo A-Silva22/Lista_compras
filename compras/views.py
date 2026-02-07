@@ -50,6 +50,13 @@ def toggle(request, pk):
     return redirect('index')
 
 
+def check_updates(request):
+    ultimo = Artigo.objects.order_by('-movido_em').values_list('movido_em', flat=True).first()
+    ts = ultimo.isoformat() if ultimo else ''
+    count = Artigo.objects.count()
+    return JsonResponse({'ts': ts, 'count': count})
+
+
 def quantidade_update(request, pk, direcao):
     import re
     artigo = get_object_or_404(Artigo, pk=pk)

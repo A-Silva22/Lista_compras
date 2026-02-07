@@ -444,6 +444,20 @@
     </div>
 
     <script>
+        /* Save scroll position before any form submit */
+        document.querySelectorAll('form').forEach(function(f) {
+            f.addEventListener('submit', function() {
+                sessionStorage.setItem('scrollY', window.scrollY);
+            });
+        });
+
+        /* Restore scroll position on page load */
+        var savedScroll = sessionStorage.getItem('scrollY');
+        if (savedScroll !== null) {
+            window.scrollTo(0, parseInt(savedScroll));
+            sessionStorage.removeItem('scrollY');
+        }
+
         /* Three-dots menu */
         function toggleMenu(btn) {
             var dropdown = btn.nextElementSibling;
@@ -497,6 +511,26 @@
                 }
             });
         });
+
+        /* Auto-refresh polling — checks every 3 seconds */
+        var lastTs = '';
+        var lastCount = -1;
+        function pollUpdates() {
+            fetch('/check_updates/')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (lastTs === '') {
+                        lastTs = data.ts;
+                        lastCount = data.count;
+                    } else if (data.ts !== lastTs || data.count !== lastCount) {
+                        sessionStorage.setItem('scrollY', window.scrollY);
+                        location.reload();
+                    }
+                })
+                .catch(function() {});
+        }
+        setInterval(pollUpdates, 3000);
+        pollUpdates();
     </script>
 </body>
 </html>
