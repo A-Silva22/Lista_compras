@@ -360,7 +360,7 @@
                 <div class="menu-wrapper">
                     <button type="button" class="menu-btn" onclick="toggleMenu(this)">⋮</button>
                     <div class="menu-dropdown">
-                        <button type="button" onclick="openEdit({{ artigo.pk }}, '{{ artigo.nome|escapejs }}', '{{ artigo.quantidade|escapejs }}')">✎ Editar</button>
+                        <button type="button" onclick="openEdit({{ artigo.pk }}, '{{ artigo.nome|escapejs }}', {{ artigo.quantidade }})">✎ Editar</button>
                         <button type="button" onclick="openDelete({{ artigo.pk }}, '{{ artigo.nome|escapejs }}')">✕ Apagar</button>
                     </div>
                 </div>
@@ -390,7 +390,7 @@
                     <div class="menu-wrapper">
                         <button type="button" class="menu-btn" onclick="toggleMenu(this)">⋮</button>
                         <div class="menu-dropdown">
-                            <button type="button" onclick="openEdit({{ artigo.pk }}, '{{ artigo.nome|escapejs }}', '{{ artigo.quantidade|escapejs }}')">✎ Editar</button>
+                            <button type="button" onclick="openEdit({{ artigo.pk }}, '{{ artigo.nome|escapejs }}', {{ artigo.quantidade }})">✎ Editar</button>
                             <button type="button" onclick="openDelete({{ artigo.pk }}, '{{ artigo.nome|escapejs }}')">✕ Apagar</button>
                         </div>
                     </div>

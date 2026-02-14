@@ -1,0 +1,5 @@
+# Replace :80 with your domain when ready, e.g.:
+# yourdomain.com {
+:80 {
+    reverse_proxy web:8000
+}
