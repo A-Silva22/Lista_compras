@@ -8,6 +8,7 @@ urlpatterns = [
     path('sair/', views.sair, name='sair'),
     path('lista/criar/', views.criar_lista, name='criar_lista'),
     path('lista/<int:pk>/selecionar/', views.selecionar_lista, name='selecionar_lista'),
+    path('lista/<int:pk>/renomear/', views.renomear_lista, name='renomear_lista'),
     path('lista/<int:pk>/apagar/', views.apagar_lista, name='apagar_lista'),
     path('lista/<int:pk>/partilhar/', views.partilhar_lista, name='partilhar_lista'),
     path('lista/<int:pk>/partilha/<int:user_pk>/remover/', views.remover_partilha, name='remover_partilha'),

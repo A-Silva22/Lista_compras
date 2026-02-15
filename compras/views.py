@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.contrib.auth import login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
-from django.db.models import Q
+from django.db.models import Q, Count
 from .models import Artigo, Lista, ListaPartilha
 from .backends import HashedPasswordBackend
 
@@ -95,7 +95,9 @@ def sair(request):
 @login_required
 def index(request):
     lista = _lista_ativa(request)
-    listas = _listas_do_utilizador(request.user)
+    listas = _listas_do_utilizador(request.user).annotate(
+        n_partilhas=Count('partilhas')
+    )
     if lista:
         despensa = lista.artigos.filter(comprar=False)
         a_comprar = lista.artigos.filter(comprar=True)
@@ -137,6 +139,17 @@ def selecionar_lista(request, pk):
 
 
 @login_required
+def renomear_lista(request, pk):
+    lista = get_object_or_404(Lista, pk=pk, dono=request.user)
+    if request.method == 'POST':
+        nome = request.POST.get('nome', '').strip()
+        if nome:
+            lista.nome = nome
+            lista.save()
+    return redirect('index')
+
+
+@login_required
 def apagar_lista(request, pk):
     lista = get_object_or_404(Lista, pk=pk, dono=request.user)
     if request.method == 'POST':
@@ -151,12 +164,26 @@ def partilhar_lista(request, pk):
     lista = get_object_or_404(Lista, pk=pk, dono=request.user)
     if request.method == 'POST':
         nome_utilizador = request.POST.get('username', '').strip()
-        if nome_utilizador and nome_utilizador != request.user.username:
-            try:
-                outro = User.objects.get(username=nome_utilizador)
-                ListaPartilha.objects.get_or_create(lista=lista, utilizador=outro)
-            except User.DoesNotExist:
-                pass
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if not nome_utilizador:
+            if is_ajax:
+                return JsonResponse({'ok': False, 'msg': 'Introduza um nome de utilizador.'})
+            return redirect('index')
+        if nome_utilizador == request.user.username:
+            if is_ajax:
+                return JsonResponse({'ok': False, 'msg': 'Não pode partilhar consigo mesmo.'})
+            return redirect('index')
+        try:
+            outro = User.objects.get(username=nome_utilizador)
+            _, created = ListaPartilha.objects.get_or_create(lista=lista, utilizador=outro)
+            if is_ajax:
+                if created:
+                    return JsonResponse({'ok': True, 'msg': f'Lista partilhada com "{nome_utilizador}".'})
+                else:
+                    return JsonResponse({'ok': True, 'msg': f'A lista já está partilhada com "{nome_utilizador}".'})
+        except User.DoesNotExist:
+            if is_ajax:
+                return JsonResponse({'ok': False, 'msg': f'Utilizador "{nome_utilizador}" não encontrado.'})
     return redirect('index')
 
 

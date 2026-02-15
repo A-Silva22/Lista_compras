@@ -97,14 +97,22 @@
         .user-dropdown a:active,
         .user-dropdown button:active { background-color: #333; }
 
-        /* ── List selector tabs ── */
+        /* ── List bar (menu + scrollable tabs) ── */
+        .list-bar {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
         .list-tabs {
             display: flex;
             gap: 6px;
             overflow-x: auto;
-            margin-bottom: 16px;
             padding-bottom: 4px;
             scrollbar-width: none;
+            flex: 1;
+            min-width: 0;
         }
 
         .list-tabs::-webkit-scrollbar { display: none; }
@@ -145,6 +153,17 @@
         }
 
         .list-tab-add:active { background: #1a1a1a; }
+
+        .shared-icon {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            margin-left: 4px;
+            vertical-align: -1px;
+            opacity: 0.5;
+        }
+
+        .list-tab.active .shared-icon { opacity: 0.7; }
 
         /* ── Section titles ── */
         .section-title {
@@ -449,34 +468,106 @@
             margin: 8px 0 16px 0;
         }
 
-        /* ── Sharing section ── */
-        .share-section {
-            margin-top: 8px;
-            padding: 14px;
-            background: #141414;
-            border-radius: 12px;
+        /* ── List menu (three dots in tab bar) ── */
+        .list-menu-wrapper {
+            position: relative;
+            flex-shrink: 0;
+            align-self: center;
         }
 
-        .share-section h3 {
-            font-size: 1rem;
+        .list-menu-btn {
+            width: 34px;
+            height: 34px;
+            border: 1px solid #333;
+            border-radius: 50%;
+            background-color: transparent;
             color: #888;
-            margin-bottom: 10px;
-            font-weight: 600;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .share-row {
+        .list-menu-btn:active { background-color: #222; }
+
+        .list-menu-dropdown {
+            display: none;
+            position: absolute;
+            left: 0;
+            top: 40px;
+            background-color: #222;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 4px 0;
+            z-index: 600;
+            min-width: 180px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+
+        .list-menu-dropdown.open { display: block; }
+
+        .list-menu-dropdown button {
+            display: block;
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #bbb;
+            font-size: 1rem;
+            text-align: left;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .list-menu-dropdown button:active { background-color: #333; }
+
+        .list-menu-dropdown .menu-sep {
+            border: none;
+            border-top: 1px solid #333;
+            margin: 4px 0;
+        }
+
+        /* ── Share feedback in modal ── */
+        .share-feedback {
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            text-align: center;
+            display: none;
+        }
+
+        .share-feedback.ok {
+            display: block;
+            background: #1c3a1c;
+            color: #8f8;
+        }
+
+        .share-feedback.fail {
+            display: block;
+            background: #3a1c1c;
+            color: #f88;
+        }
+
+        /* ── Shared users list inside modal ── */
+        .share-users-list {
+            margin-bottom: 12px;
+        }
+
+        .share-user-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 6px 0;
         }
 
-        .share-row span {
+        .share-user-row span {
             color: #aaa;
             font-size: 0.95rem;
         }
 
-        .share-row .owner-badge {
+        .share-user-row .owner-badge {
             font-size: 0.8rem;
             color: #666;
             background: #222;
@@ -496,57 +587,6 @@
         }
 
         .share-remove-btn:active { background: #333; }
-
-        .share-add-form {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .share-add-form input {
-            flex: 1;
-            min-width: 0;
-            padding: 8px 12px;
-            border: 1px solid #333;
-            border-radius: 8px;
-            background: #222;
-            color: #ccc;
-            font-size: 0.95rem;
-            outline: none;
-        }
-
-        .share-add-form input:focus { border-color: #555; }
-
-        .share-add-form button {
-            padding: 8px 14px;
-            border: none;
-            border-radius: 8px;
-            background: #e0e0e0;
-            color: #111;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-        }
-
-        .share-add-form button:active { background: #bbb; }
-
-        /* ── Delete list button ── */
-        .delete-list-section {
-            margin-top: 12px;
-            text-align: center;
-        }
-
-        .delete-list-btn {
-            padding: 8px 20px;
-            border: 1px solid #444;
-            border-radius: 10px;
-            background: transparent;
-            color: #888;
-            font-size: 0.9rem;
-            cursor: pointer;
-        }
-
-        .delete-list-btn:active { background: #1a1a1a; }
     </style>
 </head>
 <body>
@@ -565,15 +605,32 @@
             </div>
         </div>
 
-        <!-- List tabs -->
-        <div class="list-tabs">
-            {% for l in listas %}
-            <a href="{% url 'selecionar_lista' l.pk %}"
-               class="list-tab {% if lista_ativa and lista_ativa.pk == l.pk %}active{% endif %}">
-                {{ l.nome }}{% if l.dono != user %} ·&nbsp;{{ l.dono.username }}{% endif %}
-            </a>
-            {% endfor %}
-            <button type="button" class="list-tab-add" onclick="openNewList()">+ Nova lista</button>
+        <!-- List bar: menu + scrollable tabs -->
+        <div class="list-bar">
+            {% if lista_ativa %}
+            <div class="list-menu-wrapper">
+                <button type="button" class="list-menu-btn" onclick="toggleListMenu(event)">⋮</button>
+                <div class="list-menu-dropdown" id="listMenuDropdown">
+                    {% if e_dono %}
+                    <button type="button" onclick="openRenameList(); closeListMenu()">Editar nome</button>
+                    <button type="button" onclick="openShareModal(); closeListMenu()">Partilhar lista</button>
+                    <hr class="menu-sep">
+                    <button type="button" onclick="openDeleteList(); closeListMenu()">Apagar lista</button>
+                    {% else %}
+                    <button type="button" disabled style="color:#666;">Partilhada por {{ lista_ativa.dono.username }}</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            <div class="list-tabs">
+                {% for l in listas %}
+                <a href="{% url 'selecionar_lista' l.pk %}"
+                   class="list-tab {% if lista_ativa and lista_ativa.pk == l.pk %}active{% endif %}">
+                    {{ l.nome }}{% if l.n_partilhas > 0 or l.dono != user %} <svg class="shared-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{% endif %}
+                </a>
+                {% endfor %}
+                <button type="button" class="list-tab-add" onclick="openNewList()">+</button>
+            </div>
         </div>
 
         {% if lista_ativa %}
@@ -635,39 +692,6 @@
             {% endif %}
         </div>
 
-        <hr class="divider">
-
-        <!-- Sharing section (only visible to list owner) -->
-        {% if e_dono %}
-        <div class="share-section">
-            <h3>Partilhar "{{ lista_ativa.nome }}"</h3>
-            <div class="share-row">
-                <span>{{ user.username }} <span class="owner-badge">dono</span></span>
-            </div>
-            {% for p in partilhas %}
-            <div class="share-row">
-                <span>{{ p.utilizador.username }}</span>
-                <form method="POST" action="{% url 'remover_partilha' lista_ativa.pk p.utilizador.pk %}" style="margin:0;">
-                    {% csrf_token %}
-                    <button type="submit" class="share-remove-btn">Remover</button>
-                </form>
-            </div>
-            {% endfor %}
-            <form class="share-add-form" method="POST" action="{% url 'partilhar_lista' lista_ativa.pk %}">
-                {% csrf_token %}
-                <input type="text" name="username" placeholder="Nome do utilizador..." required autocomplete="off">
-                <button type="submit">Partilhar</button>
-            </form>
-        </div>
-
-        <div class="delete-list-section">
-            <button type="button" class="delete-list-btn" onclick="openDeleteList()">Apagar lista "{{ lista_ativa.nome }}"</button>
-        </div>
-        {% else %}
-        <div class="share-section">
-            <h3>Partilhada por {{ lista_ativa.dono.username }}</h3>
-        </div>
-        {% endif %}
 
         {% else %}
         <p class="empty-msg">Crie uma lista para começar.</p>
@@ -732,6 +756,55 @@
     </div>
 
     {% if lista_ativa and e_dono %}
+    <!-- Rename List Modal -->
+    <div class="modal-overlay" id="renameListModal">
+        <div class="modal">
+            <h2>Editar nome da lista</h2>
+            <form method="POST" action="{% url 'renomear_lista' lista_ativa.pk %}">
+                {% csrf_token %}
+                <input type="text" name="nome" id="renameListInput" value="{{ lista_ativa.nome }}" placeholder="Novo nome..." required autocomplete="off">
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeRenameList()">Cancelar</button>
+                    <button type="submit" class="btn-save">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if lista_ativa and e_dono %}
+    <!-- Share List Modal -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal">
+            <h2>Partilhar "{{ lista_ativa.nome }}"</h2>
+            <div class="share-users-list">
+                <div class="share-user-row">
+                    <span>{{ user.username }} <span class="owner-badge">dono</span></span>
+                </div>
+                {% for p in partilhas %}
+                <div class="share-user-row">
+                    <span>{{ p.utilizador.username }}</span>
+                    <form method="POST" action="{% url 'remover_partilha' lista_ativa.pk p.utilizador.pk %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" class="share-remove-btn">Remover</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="share-feedback" id="shareFeedback"></div>
+            <form id="shareForm" onsubmit="return submitShare(event)">
+                {% csrf_token %}
+                <input type="text" name="username" id="shareUsername" placeholder="Nome do utilizador..." required autocomplete="off">
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeShareModal()">Fechar</button>
+                    <button type="submit" class="btn-save">Partilhar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if lista_ativa and e_dono %}
     <!-- Delete List Modal -->
     <div class="modal-overlay" id="deleteListModal">
         <div class="modal">
@@ -768,7 +841,22 @@
             document.getElementById('userDropdown').classList.toggle('open');
         }
 
-        /* Three-dots menu */
+        /* List menu (three dots in tab bar) */
+        function toggleListMenu(e) {
+            if (e) e.stopPropagation();
+            var dd = document.getElementById('listMenuDropdown');
+            if (!dd) return;
+            var wasOpen = dd.classList.contains('open');
+            closeAllMenus();
+            if (!wasOpen) dd.classList.add('open');
+        }
+
+        function closeListMenu() {
+            var dd = document.getElementById('listMenuDropdown');
+            if (dd) dd.classList.remove('open');
+        }
+
+        /* Three-dots menu (items) */
         function toggleMenu(btn) {
             var dropdown = btn.nextElementSibling;
             var wasOpen = dropdown.classList.contains('open');
@@ -783,10 +871,11 @@
                 m.classList.remove('open');
             });
             document.getElementById('userDropdown').classList.remove('open');
+            closeListMenu();
         }
 
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.menu-wrapper') && !e.target.closest('.user-menu-wrapper')) {
+            if (!e.target.closest('.menu-wrapper') && !e.target.closest('.user-menu-wrapper') && !e.target.closest('.list-menu-wrapper')) {
                 closeAllMenus();
             }
         });
@@ -823,12 +912,84 @@
             document.getElementById('newListModal').classList.remove('active');
         }
 
+        function openRenameList() {
+            var el = document.getElementById('renameListModal');
+            if (el) {
+                el.classList.add('active');
+                var inp = document.getElementById('renameListInput');
+                inp.focus();
+                inp.select();
+            }
+        }
+
+        function closeRenameList() {
+            var el = document.getElementById('renameListModal');
+            if (el) el.classList.remove('active');
+        }
+
         function openDeleteList() {
             document.getElementById('deleteListModal').classList.add('active');
         }
 
         function closeDeleteList() {
             document.getElementById('deleteListModal').classList.remove('active');
+        }
+
+        /* Share modal */
+        function openShareModal() {
+            var el = document.getElementById('shareModal');
+            if (el) {
+                var fb = document.getElementById('shareFeedback');
+                fb.className = 'share-feedback';
+                fb.style.display = 'none';
+                document.getElementById('shareUsername').value = '';
+                el.classList.add('active');
+                document.getElementById('shareUsername').focus();
+            }
+        }
+
+        function closeShareModal() {
+            var el = document.getElementById('shareModal');
+            if (el) el.classList.remove('active');
+        }
+
+        function submitShare(e) {
+            e.preventDefault();
+            var form = document.getElementById('shareForm');
+            var fb = document.getElementById('shareFeedback');
+            var username = document.getElementById('shareUsername').value.trim();
+            if (!username) return false;
+            var csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+            {% if lista_ativa %}
+            var url = '/lista/{{ lista_ativa.pk }}/partilhar/';
+            {% else %}
+            var url = '/';
+            {% endif %}
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                },
+                body: 'username=' + encodeURIComponent(username)
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                fb.textContent = data.msg;
+                fb.className = 'share-feedback ' + (data.ok ? 'ok' : 'fail');
+                fb.style.display = 'block';
+                if (data.ok) {
+                    document.getElementById('shareUsername').value = '';
+                    setTimeout(function() { location.reload(); }, 1500);
+                }
+            })
+            .catch(function() {
+                fb.textContent = 'Erro de ligação.';
+                fb.className = 'share-feedback fail';
+                fb.style.display = 'block';
+            });
+            return false;
         }
 
         document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
