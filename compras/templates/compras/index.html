@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bora às compras!</title>
+    <title>{% if lista_ativa %}{{ lista_ativa.nome }} — {% endif %}Bora às compras!</title>
     <style>
         * {
             margin: 0;
@@ -27,14 +27,124 @@
             padding: 16px 12px;
         }
 
-        h1 {
-            text-align: center;
+        /* ── Top bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .top-bar h1 {
             font-size: 1.6rem;
             font-weight: 600;
             color: #e0e0e0;
-            margin-bottom: 18px;
             letter-spacing: 0.5px;
+            flex: 1;
+            text-align: center;
         }
+
+        .user-menu-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .user-btn {
+            padding: 6px 12px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background: #1a1a1a;
+            color: #aaa;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-btn:active { background: #222; }
+
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 40px;
+            background-color: #222;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 4px 0;
+            z-index: 600;
+            min-width: 160px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+
+        .user-dropdown.open { display: block; }
+
+        .user-dropdown a,
+        .user-dropdown button {
+            display: block;
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #bbb;
+            font-size: 1rem;
+            text-align: left;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .user-dropdown a:active,
+        .user-dropdown button:active { background-color: #333; }
+
+        /* ── List selector tabs ── */
+        .list-tabs {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+
+        .list-tabs::-webkit-scrollbar { display: none; }
+
+        .list-tab {
+            flex-shrink: 0;
+            padding: 7px 16px;
+            border: 1px solid #333;
+            border-radius: 20px;
+            background: transparent;
+            color: #888;
+            font-size: 0.95rem;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+
+        .list-tab:active { background: #222; }
+
+        .list-tab.active {
+            background: #e0e0e0;
+            color: #111;
+            border-color: #e0e0e0;
+            font-weight: 600;
+        }
+
+        .list-tab-add {
+            flex-shrink: 0;
+            padding: 7px 14px;
+            border: 1px dashed #444;
+            border-radius: 20px;
+            background: transparent;
+            color: #666;
+            font-size: 0.95rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .list-tab-add:active { background: #1a1a1a; }
 
         /* ── Section titles ── */
         .section-title {
@@ -338,12 +448,135 @@
             border-top: 1px solid #222;
             margin: 8px 0 16px 0;
         }
+
+        /* ── Sharing section ── */
+        .share-section {
+            margin-top: 8px;
+            padding: 14px;
+            background: #141414;
+            border-radius: 12px;
+        }
+
+        .share-section h3 {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .share-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+        }
+
+        .share-row span {
+            color: #aaa;
+            font-size: 0.95rem;
+        }
+
+        .share-row .owner-badge {
+            font-size: 0.8rem;
+            color: #666;
+            background: #222;
+            padding: 2px 8px;
+            border-radius: 8px;
+            margin-left: 6px;
+        }
+
+        .share-remove-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 8px;
+            background: #2a2a2a;
+            color: #888;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .share-remove-btn:active { background: #333; }
+
+        .share-add-form {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .share-add-form input {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 12px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #222;
+            color: #ccc;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .share-add-form input:focus { border-color: #555; }
+
+        .share-add-form button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            background: #e0e0e0;
+            color: #111;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .share-add-form button:active { background: #bbb; }
+
+        /* ── Delete list button ── */
+        .delete-list-section {
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        .delete-list-btn {
+            padding: 8px 20px;
+            border: 1px solid #444;
+            border-radius: 10px;
+            background: transparent;
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .delete-list-btn:active { background: #1a1a1a; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🛒 Bora às compras!</h1>
+        <!-- Top bar with title + user menu -->
+        <div class="top-bar">
+            <div style="width: 40px;"></div>
+            <h1>🛒 Bora às compras!</h1>
+            <div class="user-menu-wrapper">
+                <button type="button" class="user-btn" onclick="toggleUserMenu()">
+                    {{ user.username }} ▾
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="{% url 'sair' %}">Sair</a>
+                </div>
+            </div>
+        </div>
 
+        <!-- List tabs -->
+        <div class="list-tabs">
+            {% for l in listas %}
+            <a href="{% url 'selecionar_lista' l.pk %}"
+               class="list-tab {% if lista_ativa and lista_ativa.pk == l.pk %}active{% endif %}">
+                {{ l.nome }}{% if l.dono != user %} ·&nbsp;{{ l.dono.username }}{% endif %}
+            </a>
+            {% endfor %}
+            <button type="button" class="list-tab-add" onclick="openNewList()">+ Nova lista</button>
+        </div>
+
+        {% if lista_ativa %}
         <!-- Artigos a comprar (unchecked = needs buying) -->
         <div class="section-title">
             Artigos a comprar
@@ -401,8 +634,47 @@
             <p class="empty-msg">Despensa vazia.</p>
             {% endif %}
         </div>
+
+        <hr class="divider">
+
+        <!-- Sharing section (only visible to list owner) -->
+        {% if e_dono %}
+        <div class="share-section">
+            <h3>Partilhar "{{ lista_ativa.nome }}"</h3>
+            <div class="share-row">
+                <span>{{ user.username }} <span class="owner-badge">dono</span></span>
+            </div>
+            {% for p in partilhas %}
+            <div class="share-row">
+                <span>{{ p.utilizador.username }}</span>
+                <form method="POST" action="{% url 'remover_partilha' lista_ativa.pk p.utilizador.pk %}" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" class="share-remove-btn">Remover</button>
+                </form>
+            </div>
+            {% endfor %}
+            <form class="share-add-form" method="POST" action="{% url 'partilhar_lista' lista_ativa.pk %}">
+                {% csrf_token %}
+                <input type="text" name="username" placeholder="Nome do utilizador..." required autocomplete="off">
+                <button type="submit">Partilhar</button>
+            </form>
+        </div>
+
+        <div class="delete-list-section">
+            <button type="button" class="delete-list-btn" onclick="openDeleteList()">Apagar lista "{{ lista_ativa.nome }}"</button>
+        </div>
+        {% else %}
+        <div class="share-section">
+            <h3>Partilhada por {{ lista_ativa.dono.username }}</h3>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <p class="empty-msg">Crie uma lista para começar.</p>
+        {% endif %}
     </div>
 
+    {% if lista_ativa %}
     <!-- Add item bar (fixed at bottom) -->
     <div class="add-bar">
         <form class="add-form" method="POST" action="{% url 'adicionar' %}">
@@ -411,6 +683,7 @@
             <button type="submit" class="btn-submit">+</button>
         </form>
     </div>
+    {% endif %}
 
     <!-- Edit Modal -->
     <div class="modal-overlay" id="editModal">
@@ -443,6 +716,38 @@
         </div>
     </div>
 
+    <!-- New List Modal -->
+    <div class="modal-overlay" id="newListModal">
+        <div class="modal">
+            <h2>Nova lista</h2>
+            <form method="POST" action="{% url 'criar_lista' %}">
+                {% csrf_token %}
+                <input type="text" name="nome" placeholder="Nome da lista (ex: Casa, Escritório...)" required autocomplete="off">
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeNewList()">Cancelar</button>
+                    <button type="submit" class="btn-save">Criar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if lista_ativa and e_dono %}
+    <!-- Delete List Modal -->
+    <div class="modal-overlay" id="deleteListModal">
+        <div class="modal">
+            <h2>Apagar lista</h2>
+            <p class="modal-delete-text">Tem a certeza que deseja apagar a lista "{{ lista_ativa.nome }}" e todos os seus artigos?</p>
+            <form method="POST" action="{% url 'apagar_lista' lista_ativa.pk %}">
+                {% csrf_token %}
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeDeleteList()">Cancelar</button>
+                    <button type="submit" class="btn-confirm-delete">Apagar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <script>
         /* Save scroll position before any form submit */
         document.querySelectorAll('form').forEach(function(f) {
@@ -456,6 +761,11 @@
         if (savedScroll !== null) {
             window.scrollTo(0, parseInt(savedScroll));
             sessionStorage.removeItem('scrollY');
+        }
+
+        /* User menu */
+        function toggleUserMenu() {
+            document.getElementById('userDropdown').classList.toggle('open');
         }
 
         /* Three-dots menu */
@@ -472,10 +782,11 @@
             document.querySelectorAll('.menu-dropdown.open').forEach(function(m) {
                 m.classList.remove('open');
             });
+            document.getElementById('userDropdown').classList.remove('open');
         }
 
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.menu-wrapper')) {
+            if (!e.target.closest('.menu-wrapper') && !e.target.closest('.user-menu-wrapper')) {
                 closeAllMenus();
             }
         });
@@ -502,6 +813,22 @@
 
         function closeDelete() {
             document.getElementById('deleteModal').classList.remove('active');
+        }
+
+        function openNewList() {
+            document.getElementById('newListModal').classList.add('active');
+        }
+
+        function closeNewList() {
+            document.getElementById('newListModal').classList.remove('active');
+        }
+
+        function openDeleteList() {
+            document.getElementById('deleteListModal').classList.add('active');
+        }
+
+        function closeDeleteList() {
+            document.getElementById('deleteListModal').classList.remove('active');
         }
 
         document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
