@@ -14,6 +14,10 @@ listaisto.pt {
     reverse_proxy web:8000
 }
 
+http://localhost {
+    reverse_proxy web:8000
+}
+
 www.listaisto.pt {
     redir https://listaisto.pt{uri} permanent
 }

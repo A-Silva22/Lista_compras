@@ -4,7 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ lista.nome }} — Bora às compras!</title>
+    <title>{{ lista.nome }} — ListaIsto</title>
+    <link rel="icon" type="image/png" href="{% static 'compras/favicon-96x96.png' %}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'compras/favicon.svg' %}" />
+    <link rel="shortcut icon" href="{% static 'compras/favicon.ico' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'compras/apple-touch-icon.png' %}" />
+    <meta name="apple-mobile-web-app-title" content="ListaIsto" />
+    <link rel="manifest" href="{% static 'compras/site.webmanifest' %}" />
     <style>
         * {
             margin: 0;
@@ -387,7 +393,7 @@
         <!-- Top bar with title + register/login -->
         <div class="top-bar">
             <div style="width: 40px;"></div>
-            <h1>🛒 Bora às compras!</h1>
+            <h1><img src="{% static 'compras/logo3.png' %}" alt="ListaIsto" style="height:1.4em;vertical-align:middle;margin-right:6px;"> ListaIsto.</h1>
             <div class="auth-links">
                 <a href="{% url 'entrar' %}?next=/link/{{ token }}/">Entrar</a>
                 <a href="{% url 'registar' %}?next=/link/{{ token }}/">Registar</a>

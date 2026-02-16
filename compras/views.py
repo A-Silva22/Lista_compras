@@ -47,16 +47,18 @@ def _pode_aceder_lista(user, lista):
 # ── Auth views ───────────────────────────────────────────────────
 
 def _associar_link_lista(request, user):
-    """If session has a pending link token, share the list with the user."""
+    """If session has a pending link token, store it for the popup confirmation."""
     token = request.session.pop('link_token', None)
     if token:
         try:
             link = LinkPartilha.objects.select_related('lista').get(token=token)
             if link.esta_ativo and link.lista.dono != user:
-                ListaPartilha.objects.get_or_create(
+                already_shared = ListaPartilha.objects.filter(
                     lista=link.lista, utilizador=user
-                )
-                request.session['lista_ativa'] = link.lista.pk
+                ).exists()
+                if not already_shared:
+                    request.session['pending_link_token'] = str(token)
+                    request.session['pending_link_lista_nome'] = link.lista.nome
         except LinkPartilha.DoesNotExist:
             pass
 
@@ -83,7 +85,7 @@ def registar(request):
             user = backend.authenticate(request, username=username, password_hash=password_hash)
             if user:
                 login(request, user, backend='compras.backends.HashedPasswordBackend')
-                _associar_link_lista(request, user)
+                request.session.pop('link_token', None)
             if next_url:
                 return redirect(next_url)
             return redirect('index')
@@ -104,6 +106,8 @@ def entrar(request):
         if user:
             login(request, user, backend='compras.backends.HashedPasswordBackend')
             _associar_link_lista(request, user)
+            if request.session.get('pending_link_token'):
+                return redirect('index')
             if next_url:
                 return redirect(next_url)
             return redirect('index')
@@ -124,7 +128,7 @@ def index(request):
     lista = _lista_ativa(request)
     listas = _listas_do_utilizador(request.user).annotate(
         n_partilhas=Count('partilhas')
-    )
+    ).order_by('-criado_em')
     if lista:
         despensa = lista.artigos.filter(comprar=False)
         a_comprar = lista.artigos.filter(comprar=True)
@@ -135,6 +139,8 @@ def index(request):
         a_comprar = Artigo.objects.none()
         partilhas = ListaPartilha.objects.none()
         e_dono = False
+    pending_link_token = request.session.get('pending_link_token')
+    pending_link_nome = request.session.get('pending_link_lista_nome')
     return render(request, 'compras/index.html', {
         'despensa': despensa,
         'a_comprar': a_comprar,
@@ -142,7 +148,31 @@ def index(request):
         'listas': listas,
         'partilhas': partilhas,
         'e_dono': e_dono,
+        'pending_link_token': pending_link_token,
+        'pending_link_nome': pending_link_nome,
     })
+
+
+# ── Accept / reject shared link ──────────────────────────────────
+
+@login_required
+def responder_link(request):
+    """Accept or reject a pending shared list from a link."""
+    if request.method == 'POST':
+        aceitar = request.POST.get('aceitar') == '1'
+        token = request.session.pop('pending_link_token', None)
+        request.session.pop('pending_link_lista_nome', None)
+        if aceitar and token:
+            try:
+                link = LinkPartilha.objects.select_related('lista').get(token=token)
+                if link.esta_ativo and link.lista.dono != request.user:
+                    ListaPartilha.objects.get_or_create(
+                        lista=link.lista, utilizador=request.user
+                    )
+                    request.session['lista_ativa'] = link.lista.pk
+            except LinkPartilha.DoesNotExist:
+                pass
+    return redirect('index')
 
 
 # ── List management ──────────────────────────────────────────────
@@ -173,6 +203,30 @@ def renomear_lista(request, pk):
         if nome:
             lista.nome = nome
             lista.save()
+    return redirect('index')
+
+
+@login_required
+def clonar_lista(request, pk):
+    lista = get_object_or_404(Lista, pk=pk)
+    if not _pode_aceder_lista(request.user, lista):
+        return redirect('index')
+    if request.method == 'POST':
+        nome_base = lista.nome + ' (cópia)'
+        nome = nome_base
+        n = 1
+        while Lista.objects.filter(nome=nome, dono=request.user).exists():
+            n += 1
+            nome = f"{nome_base} {n}"
+        nova_lista = Lista.objects.create(nome=nome, dono=request.user)
+        for artigo in lista.artigos.all():
+            Artigo.objects.create(
+                lista=nova_lista,
+                nome=artigo.nome,
+                quantidade=artigo.quantidade,
+                comprar=artigo.comprar,
+            )
+        request.session['lista_ativa'] = nova_lista.pk
     return redirect('index')
 
 

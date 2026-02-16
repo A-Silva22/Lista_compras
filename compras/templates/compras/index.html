@@ -4,7 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{% if lista_ativa %}{{ lista_ativa.nome }} — {% endif %}Bora às compras!</title>
+    <title>ListaIsto</title>
+    <link rel="icon" type="image/png" href="{% static 'compras/favicon-96x96.png' %}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'compras/favicon.svg' %}" />
+    <link rel="shortcut icon" href="{% static 'compras/favicon.ico' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'compras/apple-touch-icon.png' %}" />
+    <meta name="apple-mobile-web-app-title" content="ListaIsto" />
+    <link rel="manifest" href="{% static 'compras/site.webmanifest' %}" />
     <style>
         * {
             margin: 0;
@@ -730,14 +736,164 @@
         }
 
         .link-delete-btn:active { background: #333; }
+
+        /* ── Hamburger list menu ── */
+        .hamburger-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .hamburger-btn {
+            width: 34px;
+            height: 34px;
+            border: 1px solid #333;
+            border-radius: 50%;
+            background-color: transparent;
+            color: #888;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hamburger-btn:active { background-color: #222; }
+
+        .hamburger-panel {
+            display: none;
+            position: absolute;
+            left: 0;
+            top: 40px;
+            background-color: #222;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 8px 0;
+            z-index: 600;
+            min-width: 220px;
+            max-height: 60vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            scrollbar-width: thin;
+            scrollbar-color: #333 #222;
+        }
+
+        .hamburger-panel.open { display: block; }
+
+        .hamburger-panel a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hamburger-panel a:active { background-color: #333; }
+
+        .hamburger-panel a.active {
+            color: #e0e0e0;
+            font-weight: 600;
+            background-color: #2a2a2a;
+        }
+
+        /* ── Shared link popup ── */
+        .link-popup-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .link-popup {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 14px;
+            padding: 28px 24px;
+            max-width: 340px;
+            width: 90%;
+            text-align: center;
+        }
+        .link-popup p {
+            color: #e0e0e0;
+            font-size: 1.05rem;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .link-popup-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .link-popup-btn {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .link-popup-yes {
+            background: #e0e0e0;
+            color: #111;
+        }
+        .link-popup-no {
+            background: #333;
+            color: #ccc;
+        }
+
+        .active-list-name {
+            flex: 1;
+            text-align: center;
+            color: #e0e0e0;
+            font-size: 1.3rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Top bar with title + user menu -->
-        <div class="top-bar">
-            <div style="width: 40px;"></div>
-            <h1>🛒 Bora às compras!</h1>
+        <!-- Single bar: hamburger + list name + dots + add + user menu -->
+        <div class="list-bar">
+            <div class="hamburger-wrapper">
+                <button type="button" class="hamburger-btn" onclick="toggleHamburger(event)">☰</button>
+                <div class="hamburger-panel" id="hamburgerPanel">
+                    {% for l in listas %}
+                    <a href="{% url 'selecionar_lista' l.pk %}"
+                       class="{% if lista_ativa and lista_ativa.pk == l.pk %}active{% endif %}">
+                        {{ l.nome }}{% if l.n_partilhas > 0 or l.dono != user %} <svg class="shared-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% if lista_ativa %}
+            <div class="list-menu-wrapper">
+                <button type="button" class="list-menu-btn" onclick="toggleListMenu(event)">⋮</button>
+                <div class="list-menu-dropdown" id="listMenuDropdown">
+                    {% if e_dono %}
+                    <button type="button" onclick="openRenameList(); closeListMenu()">Editar nome</button>
+                    <button type="button" onclick="openShareModal(); closeListMenu()">Partilhar lista</button>
+                    <button type="button" onclick="openLinkModal(); closeListMenu()">Partilhar por link</button>
+                    <button type="button" onclick="clonarLista(); closeListMenu()">Clonar lista</button>
+                    <hr class="menu-sep">
+                    <button type="button" onclick="openDeleteList(); closeListMenu()">Apagar lista</button>
+                    {% else %}
+                    <button type="button" disabled style="color:#666;">Partilhada por {{ lista_ativa.dono.username }}</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            <span class="active-list-name">{% if lista_ativa %}{{ lista_ativa.nome }}{% else %}ListaIsto.{% endif %}</span>
+            <button type="button" class="list-tab-add" onclick="openNewList()">+</button>
             <div class="user-menu-wrapper">
                 <button type="button" class="user-btn" onclick="toggleUserMenu()">
                     {{ user.username }} ▾
@@ -748,34 +904,26 @@
             </div>
         </div>
 
-        <!-- List bar: menu + scrollable tabs -->
-        <div class="list-bar">
-            {% if lista_ativa %}
-            <div class="list-menu-wrapper">
-                <button type="button" class="list-menu-btn" onclick="toggleListMenu(event)">⋮</button>
-                <div class="list-menu-dropdown" id="listMenuDropdown">
-                    {% if e_dono %}
-                    <button type="button" onclick="openRenameList(); closeListMenu()">Editar nome</button>
-                    <button type="button" onclick="openShareModal(); closeListMenu()">Partilhar lista</button>
-                    <button type="button" onclick="openLinkModal(); closeListMenu()">Partilhar por link</button>
-                    <hr class="menu-sep">
-                    <button type="button" onclick="openDeleteList(); closeListMenu()">Apagar lista</button>
-                    {% else %}
-                    <button type="button" disabled style="color:#666;">Partilhada por {{ lista_ativa.dono.username }}</button>
-                    {% endif %}
+        {% if pending_link_token %}
+        <!-- Popup: accept shared list -->
+        <div class="link-popup-overlay" id="linkPopupOverlay">
+            <div class="link-popup">
+                <p>Queres adicionar a lista <strong>{{ pending_link_nome }}</strong> às tuas listas?</p>
+                <div class="link-popup-actions">
+                    <form method="POST" action="{% url 'responder_link' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="aceitar" value="1">
+                        <button type="submit" class="link-popup-btn link-popup-yes">Sim</button>
+                    </form>
+                    <form method="POST" action="{% url 'responder_link' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="aceitar" value="0">
+                        <button type="submit" class="link-popup-btn link-popup-no">Não</button>
+                    </form>
                 </div>
             </div>
-            {% endif %}
-            <div class="list-tabs">
-                {% for l in listas %}
-                <a href="{% url 'selecionar_lista' l.pk %}"
-                   class="list-tab {% if lista_ativa and lista_ativa.pk == l.pk %}active{% endif %}">
-                    {{ l.nome }}{% if l.n_partilhas > 0 or l.dono != user %} <svg class="shared-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{% endif %}
-                </a>
-                {% endfor %}
-                <button type="button" class="list-tab-add" onclick="openNewList()">+</button>
-            </div>
         </div>
+        {% endif %}
 
         {% if lista_ativa %}
         <!-- Artigos a comprar (unchecked = needs buying) -->
@@ -1062,16 +1210,32 @@
             }
         }
 
+        /* Hamburger menu */
+        function toggleHamburger(e) {
+            if (e) e.stopPropagation();
+            var panel = document.getElementById('hamburgerPanel');
+            if (!panel) return;
+            var wasOpen = panel.classList.contains('open');
+            closeAllMenus();
+            if (!wasOpen) panel.classList.add('open');
+        }
+
+        function closeHamburger() {
+            var panel = document.getElementById('hamburgerPanel');
+            if (panel) panel.classList.remove('open');
+        }
+
         function closeAllMenus() {
             document.querySelectorAll('.menu-dropdown.open').forEach(function(m) {
                 m.classList.remove('open');
             });
             document.getElementById('userDropdown').classList.remove('open');
             closeListMenu();
+            closeHamburger();
         }
 
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.menu-wrapper') && !e.target.closest('.user-menu-wrapper') && !e.target.closest('.list-menu-wrapper')) {
+            if (!e.target.closest('.menu-wrapper') && !e.target.closest('.user-menu-wrapper') && !e.target.closest('.list-menu-wrapper') && !e.target.closest('.hamburger-wrapper')) {
                 closeAllMenus();
             }
         });
@@ -1120,6 +1284,19 @@
         function closeRenameList() {
             var el = document.getElementById('renameListModal');
             if (el) el.classList.remove('active');
+        }
+
+        function clonarLista() {
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% if lista_ativa %}{% url "clonar_lista" lista_ativa.pk %}{% endif %}';
+            var csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'csrfmiddlewaretoken';
+            csrf.value = '{{ csrf_token }}';
+            form.appendChild(csrf);
+            document.body.appendChild(form);
+            form.submit();
         }
 
         function openDeleteList() {

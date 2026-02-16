@@ -4,7 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Registar — Bora às compras!</title>
+    <title>Registar — ListaIsto</title>
+    <link rel="icon" type="image/png" href="{% static 'compras/favicon-96x96.png' %}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'compras/favicon.svg' %}" />
+    <link rel="shortcut icon" href="{% static 'compras/favicon.ico' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'compras/apple-touch-icon.png' %}" />
+    <meta name="apple-mobile-web-app-title" content="ListaIsto" />
+    <link rel="manifest" href="{% static 'compras/site.webmanifest' %}" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -88,8 +94,8 @@
 </head>
 <body>
     <div class="auth-card">
-        <h1>🛒 Criar conta</h1>
-        <p class="subtitle">Bora às compras!</p>
+        <h1><img src="{% static 'compras/logo3.png' %}" alt="ListaIsto" style="height:1.4em;vertical-align:middle;margin-right:6px;"> Criar conta</h1>
+        <p class="subtitle">ListaIsto.</p>
         {% if erro %}<div class="erro">{{ erro }}</div>{% endif %}
         <div class="erro" id="jsErro" style="display:none;"></div>
         <form method="POST" id="registerForm">
