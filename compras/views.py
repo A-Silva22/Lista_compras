@@ -283,7 +283,8 @@ def check_updates(request):
     ultimo = qs.order_by('-movido_em').values_list('movido_em', flat=True).first()
     ts = ultimo.isoformat() if ultimo else ''
     count = qs.count()
-    return JsonResponse({'ts': ts, 'count': count})
+    n_listas = _listas_do_utilizador(request.user).count()
+    return JsonResponse({'ts': ts, 'count': count, 'n_listas': n_listas})
 
 
 @login_required

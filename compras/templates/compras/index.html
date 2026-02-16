@@ -1325,6 +1325,7 @@
         /* Auto-refresh polling — checks every 3 seconds */
         var lastTs = '';
         var lastCount = -1;
+        var lastNListas = -1;
         function pollUpdates() {
             fetch('/check_updates/')
                 .then(function(r) { return r.json(); })
@@ -1332,7 +1333,8 @@
                     if (lastTs === '') {
                         lastTs = data.ts;
                         lastCount = data.count;
-                    } else if (data.ts !== lastTs || data.count !== lastCount) {
+                        lastNListas = data.n_listas;
+                    } else if (data.ts !== lastTs || data.count !== lastCount || data.n_listas !== lastNListas) {
                         sessionStorage.setItem('scrollY', window.scrollY);
                         location.reload();
                     }
