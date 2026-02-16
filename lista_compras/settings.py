@@ -33,6 +33,14 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=Csv())
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CSRF_TRUSTED_ORIGINS = ['https://listaisto.pt', 'https://www.listaisto.pt']
 
+# DOMÍNIO: Origens confiáveis para CSRF (necessário com HTTPS no Django 4.2+)
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for host in config('ALLOWED_HOSTS', default='', cast=Csv())
+    for origin in (f'https://{host}',)
+    if host
+]
+
 
 # Application definition
 

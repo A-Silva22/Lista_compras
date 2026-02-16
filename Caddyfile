@@ -10,6 +10,10 @@
 # │ Com HTTPS ativo, crypto.subtle.digest funciona no browser       │
 # │ (SHA-256 nativo em vez do fallback JS).                         │
 # └─────────────────────────────────────────────────────────────────┘
-http://listaisto.pt {
+listaisto.pt {
     reverse_proxy web:8000
+}
+
+www.listaisto.pt {
+    redir https://listaisto.pt{uri} permanent
 }

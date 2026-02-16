@@ -11,14 +11,18 @@ class HashedPasswordBackend(BaseBackend):
     The hash is then verified against the stored (double-hashed) value.
     """
 
-    def authenticate(self, request, username=None, password_hash=None, **kwargs):
-        if username is None or password_hash is None:
+    def authenticate(self, request, username=None, password_hash=None, password=None, **kwargs):
+        if username is None:
+            return None
+        # Support both: client-side hashed password and plain password (e.g. Django admin)
+        secret = password_hash or password
+        if secret is None:
             return None
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
             return None
-        if user.check_password(password_hash):
+        if user.check_password(secret):
             return user
         return None
 
