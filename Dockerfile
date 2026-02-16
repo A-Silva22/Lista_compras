@@ -37,12 +37,16 @@ COPY --from=builder /install /usr/local
 # Copy project source
 COPY . .
 
-# Collect static files
-RUN python manage.py collectstatic --noinput || true
-
 # Create non-root user
 RUN addgroup --system django && adduser --system --ingroup django django
+
+# Create staticfiles directory with proper ownership
+RUN mkdir -p /app/staticfiles && chown django:django /app/staticfiles
+
 USER django
+
+# Collect static files (will fail gracefully if SECRET_KEY not set at build time)
+RUN python manage.py collectstatic --noinput || true
 
 EXPOSE 8000
 
