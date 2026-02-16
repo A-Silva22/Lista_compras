@@ -26,6 +26,8 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
+# DOMÍNIO: Quando tiveres domínio, adiciona-o ao .env:
+#   ALLOWED_HOSTS=meudominio.pt,www.meudominio.pt
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=Csv())
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

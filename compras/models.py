@@ -1,5 +1,7 @@
+import uuid
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 
 class Lista(models.Model):
@@ -40,6 +42,31 @@ class ListaPartilha(models.Model):
 
     def __str__(self):
         return f"{self.lista.nome} → {self.utilizador.username}"
+
+
+class LinkPartilha(models.Model):
+    lista = models.ForeignKey(
+        Lista,
+        on_delete=models.CASCADE,
+        related_name='links_partilha',
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    expira_em = models.DateTimeField()
+    pode_adicionar = models.BooleanField(default=False)
+    pode_editar = models.BooleanField(default=False)
+    pode_apagar = models.BooleanField(default=False)
+    pode_toggle = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return f"Link: {self.lista.nome} ({self.token})"
+
+    @property
+    def esta_ativo(self):
+        return timezone.now() < self.expira_em
 
 
 class Artigo(models.Model):

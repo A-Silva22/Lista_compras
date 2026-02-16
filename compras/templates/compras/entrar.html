@@ -94,15 +94,39 @@
         <div class="erro" id="jsErro" style="display:none;"></div>
         <form method="POST" id="loginForm">
             {% csrf_token %}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
             <input type="text" name="username" placeholder="Nome de utilizador" required autocomplete="username">
             <input type="password" id="password" placeholder="Palavra-passe" required autocomplete="current-password">
             <input type="hidden" name="password_hash" id="password_hash">
             <button type="submit" class="btn-primary">Entrar</button>
         </form>
-        <p class="link">Não tem conta? <a href="{% url 'registar' %}">Registar</a></p>
+        <p class="link">Não tem conta? <a href="{% url 'registar' %}{% if next %}?next={{ next }}{% endif %}">Registar</a></p>
     </div>
     <script>
-        function sha256(str) {
+        /*
+         * Hashing da palavra-passe no browser (o servidor NUNCA recebe a password em texto).
+         *
+         * Método principal : crypto.subtle.digest (SHA-256 nativo do browser)
+         *   → Requer contexto seguro (HTTPS ou localhost).
+         *   → Quando tiveres domínio, basta configurar HTTPS (ver Caddyfile)
+         *     e este método será usado automaticamente.
+         *
+         * Fallback : implementação SHA-256 em JS puro
+         *   → Usado quando crypto.subtle não está disponível (HTTP sem localhost).
+         */
+
+        /* ── SHA-256 nativo (crypto.subtle) ── */
+        function sha256Native(str) {
+            var encoder = new TextEncoder();
+            var data = encoder.encode(str);
+            return crypto.subtle.digest('SHA-256', data).then(function(buffer) {
+                var hashArray = Array.from(new Uint8Array(buffer));
+                return hashArray.map(function(b) { return ('00' + b.toString(16)).slice(-2); }).join('');
+            });
+        }
+
+        /* ── SHA-256 fallback (JS puro, para contextos não-HTTPS) ── */
+        function sha256Fallback(str) {
             function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
             var mathPow = Math.pow, maxWord = mathPow(2, 32);
             var lengthProperty = 'length', i, j;
@@ -162,6 +186,14 @@
             return result;
         }
 
+        /* ── Escolhe o método disponível ── */
+        function hashPassword(pw) {
+            if (window.crypto && crypto.subtle) {
+                return sha256Native(pw);
+            }
+            return Promise.resolve(sha256Fallback(pw));
+        }
+
         function showJsError(msg) {
             var el = document.getElementById('jsErro');
             el.textContent = msg;
@@ -170,17 +202,17 @@
 
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            try {
-                var pw = document.getElementById('password').value;
-                if (!pw) { showJsError('Introduza uma palavra-passe.'); return; }
-                var hashHex = sha256(pw);
+            var form = this;
+            var pw = document.getElementById('password').value;
+            if (!pw) { showJsError('Introduza uma palavra-passe.'); return; }
+            hashPassword(pw).then(function(hashHex) {
                 if (!hashHex) { showJsError('Erro ao processar a palavra-passe.'); return; }
                 document.getElementById('password_hash').value = hashHex;
                 document.getElementById('password').value = '';
-                this.submit();
-            } catch (err) {
+                form.submit();
+            }).catch(function(err) {
                 showJsError('Erro: ' + err.message);
-            }
+            });
         });
     </script>
 </body>

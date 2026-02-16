@@ -1,11 +1,13 @@
 import re
+from datetime import timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth import login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.db.models import Q, Count
-from .models import Artigo, Lista, ListaPartilha
+from django.utils import timezone
+from .models import Artigo, Lista, ListaPartilha, LinkPartilha
 from .backends import HashedPasswordBackend
 
 User = get_user_model()
@@ -44,11 +46,28 @@ def _pode_aceder_lista(user, lista):
 
 # ── Auth views ───────────────────────────────────────────────────
 
+def _associar_link_lista(request, user):
+    """If session has a pending link token, share the list with the user."""
+    token = request.session.pop('link_token', None)
+    if token:
+        try:
+            link = LinkPartilha.objects.select_related('lista').get(token=token)
+            if link.esta_ativo and link.lista.dono != user:
+                ListaPartilha.objects.get_or_create(
+                    lista=link.lista, utilizador=user
+                )
+                request.session['lista_ativa'] = link.lista.pk
+        except LinkPartilha.DoesNotExist:
+            pass
+
+
 def registar(request):
     if request.user.is_authenticated:
         return redirect('index')
+    next_url = request.GET.get('next', '')
     erro = ''
     if request.method == 'POST':
+        next_url = request.POST.get('next', '')
         username = request.POST.get('username', '').strip()
         password_hash = request.POST.get('password_hash', '').strip()
         if not username or not password_hash:
@@ -64,25 +83,33 @@ def registar(request):
             user = backend.authenticate(request, username=username, password_hash=password_hash)
             if user:
                 login(request, user, backend='compras.backends.HashedPasswordBackend')
+                _associar_link_lista(request, user)
+            if next_url:
+                return redirect(next_url)
             return redirect('index')
-    return render(request, 'compras/registar.html', {'erro': erro})
+    return render(request, 'compras/registar.html', {'erro': erro, 'next': next_url})
 
 
 def entrar(request):
     if request.user.is_authenticated:
         return redirect('index')
+    next_url = request.GET.get('next', '')
     erro = ''
     if request.method == 'POST':
+        next_url = request.POST.get('next', '')
         username = request.POST.get('username', '').strip()
         password_hash = request.POST.get('password_hash', '').strip()
         backend = HashedPasswordBackend()
         user = backend.authenticate(request, username=username, password_hash=password_hash)
         if user:
             login(request, user, backend='compras.backends.HashedPasswordBackend')
+            _associar_link_lista(request, user)
+            if next_url:
+                return redirect(next_url)
             return redirect('index')
         else:
             erro = 'Nome de utilizador ou palavra-passe incorretos.'
-    return render(request, 'compras/entrar.html', {'erro': erro})
+    return render(request, 'compras/entrar.html', {'erro': erro, 'next': next_url})
 
 
 def sair(request):
@@ -274,3 +301,177 @@ def quantidade_update(request, pk, direcao):
         artigo.quantidade = f"{num}"
         artigo.save()
     return redirect('index')
+
+
+# ── Link sharing (public links) ──────────────────────────────────
+
+@login_required
+def criar_link_partilha(request, pk):
+    """Owner creates a shared link with permissions and expiry."""
+    lista = get_object_or_404(Lista, pk=pk, dono=request.user)
+    if request.method == 'POST':
+        duracao = request.POST.get('duracao', '24')
+        unidade = request.POST.get('unidade', 'horas')
+        try:
+            duracao = max(1, int(duracao))
+        except (ValueError, TypeError):
+            duracao = 24
+        if unidade == 'dias':
+            delta = timedelta(days=duracao)
+        elif unidade == 'minutos':
+            delta = timedelta(minutes=duracao)
+        else:
+            delta = timedelta(hours=duracao)
+        link = LinkPartilha.objects.create(
+            lista=lista,
+            expira_em=timezone.now() + delta,
+            pode_adicionar='pode_adicionar' in request.POST,
+            pode_editar='pode_editar' in request.POST,
+            pode_apagar='pode_apagar' in request.POST,
+            pode_toggle='pode_toggle' in request.POST,
+        )
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            url = request.build_absolute_uri(f'/link/{link.token}/')
+            return JsonResponse({'ok': True, 'url': url, 'token': str(link.token)})
+    return redirect('index')
+
+
+@login_required
+def apagar_link_partilha(request, pk, link_pk):
+    """Owner deletes a shared link."""
+    lista = get_object_or_404(Lista, pk=pk, dono=request.user)
+    link = get_object_or_404(LinkPartilha, pk=link_pk, lista=lista)
+    if request.method == 'POST':
+        link.delete()
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return JsonResponse({'ok': True})
+    return redirect('index')
+
+
+@login_required
+def listar_links_partilha(request, pk):
+    """Return JSON list of active links for a list (AJAX)."""
+    lista = get_object_or_404(Lista, pk=pk, dono=request.user)
+    links = lista.links_partilha.filter(expira_em__gt=timezone.now())
+    data = []
+    for lnk in links:
+        data.append({
+            'id': lnk.pk,
+            'url': request.build_absolute_uri(f'/link/{lnk.token}/'),
+            'expira_em': lnk.expira_em.strftime('%d/%m/%Y %H:%M'),
+            'pode_adicionar': lnk.pode_adicionar,
+            'pode_editar': lnk.pode_editar,
+            'pode_apagar': lnk.pode_apagar,
+            'pode_toggle': lnk.pode_toggle,
+        })
+    return JsonResponse({'links': data})
+
+
+def _get_link_or_404(token):
+    """Get an active link or 404."""
+    link = get_object_or_404(LinkPartilha, token=token)
+    if not link.esta_ativo:
+        from django.http import Http404
+        raise Http404
+    return link
+
+
+def ver_link(request, token):
+    """Public page: view a list via shared link."""
+    link = _get_link_or_404(token)
+    lista = link.lista
+    despensa = lista.artigos.filter(comprar=False)
+    a_comprar = lista.artigos.filter(comprar=True)
+    # Store token in session so auth views can associate the list
+    request.session['link_token'] = str(token)
+    return render(request, 'compras/link.html', {
+        'link': link,
+        'lista': lista,
+        'despensa': despensa,
+        'a_comprar': a_comprar,
+        'token': token,
+    })
+
+
+def link_adicionar(request, token):
+    """Add item via shared link."""
+    link = _get_link_or_404(token)
+    if not link.pode_adicionar:
+        return redirect('ver_link', token=token)
+    if request.method == 'POST':
+        nome = request.POST.get('nome', '').strip()
+        quantidade = request.POST.get('quantidade', '1').strip()
+        if nome:
+            if not quantidade:
+                quantidade = '1'
+            Artigo.objects.create(lista=link.lista, nome=nome, quantidade=quantidade, comprar=True)
+    return redirect('ver_link', token=token)
+
+
+def link_toggle(request, token, pk):
+    """Toggle item via shared link."""
+    link = _get_link_or_404(token)
+    if not link.pode_toggle:
+        return redirect('ver_link', token=token)
+    artigo = get_object_or_404(Artigo, pk=pk, lista=link.lista)
+    if request.method == 'POST':
+        artigo.comprar = not artigo.comprar
+        artigo.save()
+    return redirect('ver_link', token=token)
+
+
+def link_editar(request, token, pk):
+    """Edit item via shared link."""
+    link = _get_link_or_404(token)
+    if not link.pode_editar:
+        return redirect('ver_link', token=token)
+    artigo = get_object_or_404(Artigo, pk=pk, lista=link.lista)
+    if request.method == 'POST':
+        nome = request.POST.get('nome', '').strip()
+        quantidade = request.POST.get('quantidade', '1').strip()
+        if nome:
+            artigo.nome = nome
+            artigo.quantidade = quantidade if quantidade else '1'
+            artigo.save()
+    return redirect('ver_link', token=token)
+
+
+def link_apagar(request, token, pk):
+    """Delete item via shared link."""
+    link = _get_link_or_404(token)
+    if not link.pode_apagar:
+        return redirect('ver_link', token=token)
+    artigo = get_object_or_404(Artigo, pk=pk, lista=link.lista)
+    if request.method == 'POST':
+        artigo.delete()
+    return redirect('ver_link', token=token)
+
+
+def link_quantidade(request, token, pk, direcao):
+    """Update quantity via shared link."""
+    link = _get_link_or_404(token)
+    if not link.pode_editar:
+        return redirect('ver_link', token=token)
+    artigo = get_object_or_404(Artigo, pk=pk, lista=link.lista)
+    if request.method == 'POST':
+        match = re.match(r'^(\d+)', artigo.quantidade)
+        num = int(match.group(1)) if match else 1
+        if direcao == 'mais':
+            num += 1
+        elif direcao == 'menos' and num > 1:
+            num -= 1
+        artigo.quantidade = f"{num}"
+        artigo.save()
+    return redirect('ver_link', token=token)
+
+
+def link_check_updates(request, token):
+    """Poll for updates on a link page."""
+    link = _get_link_or_404(token)
+    qs = link.lista.artigos.all()
+    ultimo = qs.order_by('-movido_em').values_list('movido_em', flat=True).first()
+    ts = ultimo.isoformat() if ultimo else ''
+    count = qs.count()
+    return JsonResponse({'ts': ts, 'count': count})

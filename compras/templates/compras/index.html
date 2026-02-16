@@ -587,6 +587,149 @@
         }
 
         .share-remove-btn:active { background: #333; }
+
+        /* ── Link sharing modal ── */
+        .link-modal-section {
+            margin-bottom: 16px;
+        }
+
+        .link-modal-section label {
+            display: block;
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+
+        .link-duration-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .link-duration-row input {
+            width: 80px;
+            flex-shrink: 0;
+        }
+
+        .link-duration-row select {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background-color: #222;
+            color: #ccc;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .perm-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .perm-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background: #1a1a1a;
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s;
+        }
+
+        .perm-toggle input { display: none; }
+
+        .perm-toggle.checked {
+            background: #1c3a1c;
+            color: #8f8;
+            border-color: #2a4a2a;
+        }
+
+        .link-result {
+            margin-top: 12px;
+            padding: 12px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .link-result-url {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .link-result-url input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .btn-copy {
+            flex-shrink: 0;
+            padding: 10px 14px;
+            border: none;
+            border-radius: 10px;
+            background: #e0e0e0;
+            color: #111;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .btn-copy:active { background: #bbb; }
+
+        .existing-links {
+            margin-top: 12px;
+        }
+
+        .existing-link-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #222;
+        }
+
+        .existing-link-row:last-child { border-bottom: none; }
+
+        .existing-link-info {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .existing-link-info a {
+            color: #8cf;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .existing-link-info .link-expiry {
+            display: block;
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .link-delete-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 8px;
+            background: #2a2a2a;
+            color: #888;
+            font-size: 0.85rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .link-delete-btn:active { background: #333; }
     </style>
 </head>
 <body>
@@ -614,6 +757,7 @@
                     {% if e_dono %}
                     <button type="button" onclick="openRenameList(); closeListMenu()">Editar nome</button>
                     <button type="button" onclick="openShareModal(); closeListMenu()">Partilhar lista</button>
+                    <button type="button" onclick="openLinkModal(); closeListMenu()">Partilhar por link</button>
                     <hr class="menu-sep">
                     <button type="button" onclick="openDeleteList(); closeListMenu()">Apagar lista</button>
                     {% else %}
@@ -716,7 +860,6 @@
             <form id="editForm" method="POST">
                 {% csrf_token %}
                 <input type="text" name="nome" id="editNome" placeholder="Nome do artigo" required>
-                <input type="text" name="quantidade" id="editQtd" placeholder="Quantidade (ex: 2x)">
                 <div class="modal-actions">
                     <button type="button" class="btn-cancel" onclick="closeEdit()">Cancelar</button>
                     <button type="submit" class="btn-save">Guardar</button>
@@ -805,6 +948,59 @@
     {% endif %}
 
     {% if lista_ativa and e_dono %}
+    <!-- Link Share Modal -->
+    <div class="modal-overlay" id="linkModal">
+        <div class="modal">
+            <h2>Partilhar "{{ lista_ativa.nome }}" por link</h2>
+
+            <div class="link-modal-section">
+                <label>Duração do link</label>
+                <div class="link-duration-row">
+                    <input type="number" id="linkDuracao" value="24" min="1" max="999">
+                    <select id="linkUnidade">
+                        <option value="minutos">Minutos</option>
+                        <option value="horas" selected>Horas</option>
+                        <option value="dias">Dias</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="link-modal-section">
+                <label>Permissões</label>
+                <div class="perm-grid" id="permGrid">
+                    <label class="perm-toggle">
+                        <input type="checkbox" id="permAdicionar"> Adicionar
+                    </label>
+                    <label class="perm-toggle">
+                        <input type="checkbox" id="permEditar"> Editar
+                    </label>
+                    <label class="perm-toggle">
+                        <input type="checkbox" id="permApagar"> Apagar
+                    </label>
+                    <label class="perm-toggle checked">
+                        <input type="checkbox" id="permToggle" checked> Mover
+                    </label>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-bottom:12px;">
+                <button type="button" class="btn-cancel" onclick="closeLinkModal()">Fechar</button>
+                <button type="button" class="btn-save" onclick="criarLink()">Criar link</button>
+            </div>
+
+            <div class="link-result" id="linkResult">
+                <div class="link-result-url">
+                    <input type="text" id="linkUrl" readonly onclick="this.select()">
+                    <button type="button" class="btn-copy" onclick="copiarLink()">Copiar</button>
+                </div>
+            </div>
+
+            <div class="existing-links" id="existingLinks"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if lista_ativa and e_dono %}
     <!-- Delete List Modal -->
     <div class="modal-overlay" id="deleteListModal">
         <div class="modal">
@@ -884,7 +1080,6 @@
             closeAllMenus();
             document.getElementById('editForm').action = '/editar/' + pk + '/';
             document.getElementById('editNome').value = nome;
-            document.getElementById('editQtd').value = qtd;
             document.getElementById('editModal').classList.add('active');
             document.getElementById('editNome').focus();
         }
@@ -990,6 +1185,133 @@
                 fb.style.display = 'block';
             });
             return false;
+        }
+
+        /* Link share modal — wire up permission toggles */
+        document.querySelectorAll('#permGrid .perm-toggle input[type=checkbox]').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                if (this.checked) {
+                    this.parentElement.classList.add('checked');
+                } else {
+                    this.parentElement.classList.remove('checked');
+                }
+            });
+        });
+
+        function openLinkModal() {
+            var el = document.getElementById('linkModal');
+            if (!el) return;
+            document.getElementById('linkResult').style.display = 'none';
+            el.classList.add('active');
+            carregarLinks();
+        }
+
+        function closeLinkModal() {
+            var el = document.getElementById('linkModal');
+            if (el) el.classList.remove('active');
+        }
+
+        function criarLink() {
+            var duracao = document.getElementById('linkDuracao').value;
+            var unidade = document.getElementById('linkUnidade').value;
+            var params = 'duracao=' + encodeURIComponent(duracao) + '&unidade=' + encodeURIComponent(unidade);
+            if (document.getElementById('permAdicionar').checked) params += '&pode_adicionar=1';
+            if (document.getElementById('permEditar').checked) params += '&pode_editar=1';
+            if (document.getElementById('permApagar').checked) params += '&pode_apagar=1';
+            if (document.getElementById('permToggle').checked) params += '&pode_toggle=1';
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            {% if lista_ativa %}
+            var url = '/lista/{{ lista_ativa.pk }}/link/criar/';
+            {% else %}
+            var url = '/';
+            {% endif %}
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                },
+                body: params
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok) {
+                    document.getElementById('linkUrl').value = data.url;
+                    document.getElementById('linkResult').style.display = 'block';
+                    carregarLinks();
+                }
+            })
+            .catch(function() {});
+        }
+
+        function copiarLink() {
+            var inp = document.getElementById('linkUrl');
+            inp.select();
+            inp.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(inp.value).then(function() {
+                var btn = document.querySelector('.btn-copy');
+                btn.textContent = 'Copiado!';
+                setTimeout(function() { btn.textContent = 'Copiar'; }, 2000);
+            }).catch(function() {
+                document.execCommand('copy');
+            });
+        }
+
+        function carregarLinks() {
+            {% if lista_ativa %}
+            var url = '/lista/{{ lista_ativa.pk }}/links/';
+            {% else %}
+            var url = null;
+            {% endif %}
+            if (!url) return;
+            fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var container = document.getElementById('existingLinks');
+                if (!data.links || data.links.length === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+                var html = '<label style="display:block;color:#aaa;font-size:0.9rem;margin-bottom:6px;">Links ativos</label>';
+                data.links.forEach(function(lnk) {
+                    var perms = [];
+                    if (lnk.pode_adicionar) perms.push('Adicionar');
+                    if (lnk.pode_editar) perms.push('Editar');
+                    if (lnk.pode_apagar) perms.push('Apagar');
+                    if (lnk.pode_toggle) perms.push('Mover');
+                    html += '<div class="existing-link-row">';
+                    html += '<div class="existing-link-info">';
+                    html += '<a href="' + lnk.url + '" target="_blank">' + lnk.url.replace(/^https?:\/\//, '') + '</a>';
+                    html += '<span class="link-expiry">Expira: ' + lnk.expira_em + ' · ' + (perms.length ? perms.join(', ') : 'Só ver') + '</span>';
+                    html += '</div>';
+                    html += '<button type="button" class="link-delete-btn" onclick="apagarLink(' + lnk.id + ')">Apagar</button>';
+                    html += '</div>';
+                });
+                container.innerHTML = html;
+            })
+            .catch(function() {});
+        }
+
+        function apagarLink(linkId) {
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            {% if lista_ativa %}
+            var url = '/lista/{{ lista_ativa.pk }}/link/' + linkId + '/apagar/';
+            {% else %}
+            var url = '/';
+            {% endif %}
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok) carregarLinks();
+            })
+            .catch(function() {});
         }
 
         document.querySelectorAll('.modal-overlay').forEach(function(overlay) {

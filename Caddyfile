@@ -1,5 +1,15 @@
-# Replace :80 with your domain when ready, e.g.:
-# yourdomain.com {
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ DOMÍNIO: Quando tiveres domínio, substitui ":80" pelo domínio │
+# │ O Caddy obtém certificado HTTPS (Let's Encrypt) automaticamente. │
+# │                                                                 │
+# │ Exemplo:                                                        │
+# │   meudominio.pt {                                               │
+# │       reverse_proxy web:8000                                    │
+# │   }                                                             │
+# │                                                                 │
+# │ Com HTTPS ativo, crypto.subtle.digest funciona no browser       │
+# │ (SHA-256 nativo em vez do fallback JS).                         │
+# └─────────────────────────────────────────────────────────────────┘
 :80 {
     reverse_proxy web:8000
 }
