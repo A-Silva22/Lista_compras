@@ -1,188 +1,196 @@
-# 🛒 Let's Go Shopping
+# ListaIsto.
 
-Aplicação web de lista de compras desenvolvida em **Python Django** com base de dados **MySQL**.
-
----
-
-## Descrição
-
-"Let's Go Shopping" é uma aplicação de gestão de lista de compras com duas secções:
-
-- **📦 Despensa** — Artigos disponíveis em casa (lista com scroll)
-- **🛍️ Artigos a comprar** — Artigos marcados para compra
-
-### Funcionalidades
-
-- **Adicionar** artigos com nome e quantidade (predefinido: `1x`)
-- **Editar** nome e quantidade de qualquer artigo
-- **Apagar** artigos com confirmação
-- **Checkbox** — Marcar um artigo na despensa move-o para "Artigos a comprar"; desmarcar devolve-o à despensa
-- Suporte a **caracteres especiais** e textos longos
-- Interface **dark mode**, moderna e otimizada para **smartphone**
+A collaborative shopping list web application built with **Django** and **MySQL**, containerized with **Docker Compose** and served via **Caddy** with HTTPS support.
 
 ---
 
-## Requisitos
+## Description
 
-- Python 3.13
-- MySQL Server (acessível em `192.168.122.45:3307`)
-- Dependências Python listadas em `requirements.txt`
+**ListaIsto.** is a shopping list management app with two sections per list:
+
+- **Pantry** — Items available at home
+- **To Buy** — Items marked for purchase
+
+### Features
+
+- **Multiple lists** — Create, rename, delete, and switch between lists
+- **Clone lists** — Duplicate any list (including all items) with one click
+- **List sharing** — Share lists with other registered users for real-time collaboration
+- **Link sharing** — Generate temporary public links with granular permissions (add, edit, delete, toggle)
+- **Shared list popup** — When logging in via a shared link, a popup asks if you want to add the list to your collection
+- **Add items** with name and quantity (default: `1x`)
+- **Edit** name and quantity of any item
+- **Delete** items with confirmation
+- **Checkbox** — Checking a pantry item moves it to "To Buy"; unchecking returns it to the pantry
+- **Real-time updates** — Automatic polling for changes made by other users
+- **User authentication** — Registration, login, and profile management
+- Support for **special characters** and long text
+- **Dark mode** UI, modern and optimized for **mobile devices**
+- **Custom favicon** with SVG, PNG, and ICO formats for sharp display across all browsers
 
 ---
 
-## Estrutura do Projeto
+## Requirements
+
+- Docker & Docker Compose
+- A `.env` file with database credentials and Django secret key
+
+---
+
+## Project Structure
 
 ```
 lista_compras/
-├── compras/                        # App Django principal
-│   ├── migrations/                 # Migrações da base de dados
+├── compras/                        # Main Django app
+│   ├── migrations/                 # Database migrations
 │   ├── templates/compras/
-│   │   └── index.html              # Template principal (UI)
-│   ├── models.py                   # Modelo Artigo
-│   ├── views.py                    # Views (CRUD + toggle)
-│   ├── urls.py                     # Rotas da app
+│   │   ├── index.html              # Main template (authenticated UI)
+│   │   ├── entrar.html             # Login page
+│   │   ├── registar.html           # Registration page
+│   │   └── link.html               # Public shared link view
+│   ├── static/compras/             # Static files (logo, favicons)
+│   ├── models.py                   # Models (Lista, Artigo, ListaPartilha, LinkPartilha)
+│   ├── views.py                    # Views (CRUD, sharing, auth, clone)
+│   ├── urls.py                     # App routes
+│   ├── backends.py                 # Custom auth backend
 │   └── admin.py
-├── lista_compras/                  # Configuração do projeto Django
-│   ├── settings.py                 # Configurações (BD, apps, idioma)
-│   ├── urls.py                     # Rotas raiz
+├── lista_compras/                  # Django project settings
+│   ├── settings.py                 # Settings (DB, apps, middleware)
+│   ├── urls.py                     # Root URL config
 │   ├── wsgi.py
 │   └── asgi.py
-├── venv.lista/                     # Ambiente virtual Python
-├── manage.py                       # CLI do Django
-├── requirements.txt                # Dependências
-└── README.md                       # Esta documentação
+├── Dockerfile                      # Web service container
+├── Caddyfile                       # Caddy reverse proxy config
+├── docker-compose.yml              # Multi-service orchestration
+├── requirements.txt                # Python dependencies
+└── README.md                       # This documentation
 ```
 
 ---
 
-## Instalação e Configuração
+## Setup & Installation
 
-### 1. Clonar/aceder ao projeto
+### 1. Clone the repository
 
 ```bash
+git clone <repo-url>
 cd lista_compras/
 ```
 
-### 2. Criar ambiente virtual
+### 2. Create a `.env` file
+
+```env
+SECRET_KEY=your-django-secret-key
+DB_NAME=lista_compras
+DB_USER=root
+DB_PASSWORD=your-db-password
+DB_HOST=db
+DB_PORT=3306
+```
+
+### 3. Start the application
 
 ```bash
-python3.13 -m venv venv.lista
+sudo docker compose up -d --build
 ```
 
-### 3. Ativar ambiente virtual
+This starts three services:
+- **db** — MySQL database
+- **web** — Django app served by Gunicorn + WhiteNoise for static files
+- **caddy** — Reverse proxy with automatic HTTPS
 
-**Bash/Zsh:**
-```bash
-source venv.lista/bin/activate
-```
+### 4. Access the app
 
-**Fish:**
-```fish
-source venv.lista/bin/activate.fish
-```
-
-### 4. Instalar dependências
-
-```bash
-pip install -r requirements.txt
-```
-
-### 5. Configurar a base de dados MySQL
-
-Certifique-se de que o servidor MySQL está acessível e crie a base de dados:
-
-```sql
-CREATE DATABASE lista_compras CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-Configuração em `lista_compras/settings.py`:
-
-```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'lista_compras',
-        'USER': 'root',
-        'PASSWORD': '1234',
-        'HOST': '192.168.122.45',
-        'PORT': '3307',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
-    }
-}
-```
-
-### 6. Aplicar migrações
-
-```bash
-python manage.py makemigrations compras
-python manage.py migrate
-```
-
-### 7. Iniciar o servidor
-
-```bash
-python manage.py runserver 0.0.0.0:8000
-```
-
-Aceder em: **http://localhost:8000** ou **http://<IP_da_máquina>:8000** no smartphone.
+- **Local:** http://localhost
+- **Production:** https://your-domain.com (configured in `Caddyfile`)
 
 ---
 
-## Modelo de Dados
+## Data Models
 
-### Artigo
+### Lista (List)
 
-| Campo       | Tipo          | Descrição                                      |
-|-------------|---------------|------------------------------------------------|
-| `id`        | BigAutoField  | Chave primária (automático)                    |
-| `nome`      | CharField(500)| Nome do artigo                                 |
-| `quantidade`| CharField(50) | Quantidade (predefinido: `1x`)                 |
-| `comprar`   | BooleanField  | `False` = despensa, `True` = lista de compras  |
-| `criado_em` | DateTimeField | Data/hora de criação (automático)              |
+| Field       | Type           | Description                        |
+|-------------|----------------|------------------------------------|
+| `id`        | BigAutoField   | Primary key (auto)                 |
+| `nome`      | CharField(200) | List name                          |
+| `dono`      | ForeignKey     | Owner (User)                       |
+| `criado_em` | DateTimeField  | Creation date (auto)               |
+
+### Artigo (Item)
+
+| Field       | Type           | Description                                  |
+|-------------|----------------|----------------------------------------------|
+| `id`        | BigAutoField   | Primary key (auto)                           |
+| `lista`     | ForeignKey     | Parent list                                  |
+| `nome`      | CharField(500) | Item name                                    |
+| `quantidade`| CharField(50)  | Quantity (default: `1x`)                     |
+| `comprar`   | BooleanField   | `False` = pantry, `True` = to buy            |
+| `criado_em` | DateTimeField  | Creation date (auto)                         |
+| `movido_em` | DateTimeField  | Last moved date (auto)                       |
+
+### ListaPartilha (List Share)
+
+| Field        | Type          | Description                        |
+|--------------|---------------|------------------------------------|
+| `lista`      | ForeignKey    | Shared list                        |
+| `utilizador` | ForeignKey    | User with access                   |
+| `criado_em`  | DateTimeField | Share date (auto)                  |
+
+### LinkPartilha (Share Link)
+
+| Field           | Type          | Description                        |
+|-----------------|---------------|------------------------------------|
+| `lista`         | ForeignKey    | Linked list                        |
+| `token`         | UUIDField     | Unique public token                |
+| `expira_em`     | DateTimeField | Expiration date                    |
+| `pode_adicionar`| BooleanField  | Can add items                      |
+| `pode_editar`   | BooleanField  | Can edit items                     |
+| `pode_apagar`   | BooleanField  | Can delete items                   |
+| `pode_toggle`   | BooleanField  | Can toggle items                   |
 
 ---
 
-## Rotas (URLs)
+## Routes (URLs)
 
-| URL                  | Método | Descrição                          |
-|----------------------|--------|------------------------------------|
-| `/`                  | GET    | Página principal                   |
-| `/adicionar/`        | POST   | Adicionar novo artigo              |
-| `/editar/<id>/`      | POST   | Editar artigo existente            |
-| `/apagar/<id>/`      | POST   | Apagar artigo                      |
-| `/toggle/<id>/`      | POST   | Alternar entre despensa e compras  |
-
----
-
-## Utilização no Smartphone
-
-1. Ligar o smartphone à mesma rede que o servidor
-2. Iniciar o servidor com `0.0.0.0:8000`
-3. No browser do smartphone, aceder a `http://<IP_do_servidor>:8000`
-
-A interface está otimizada para ecrãs pequenos:
-- Formulário de adição com campo de quantidade à direita
-- Botões de ação com tamanho adequado para toque
-- Lista da despensa com scroll vertical
-- Modais de edição e eliminação adaptados a mobile
+| URL                                      | Method | Description                        |
+|------------------------------------------|--------|------------------------------------|
+| `/`                                      | GET    | Main page                          |
+| `/registar/`                             | POST   | Register new user                  |
+| `/entrar/`                               | POST   | Login                              |
+| `/sair/`                                 | POST   | Logout                             |
+| `/lista/criar/`                          | POST   | Create new list                    |
+| `/lista/<id>/selecionar/`               | GET    | Switch active list                 |
+| `/lista/<id>/renomear/`                 | POST   | Rename list                        |
+| `/lista/<id>/apagar/`                   | POST   | Delete list                        |
+| `/lista/<id>/clonar/`                   | POST   | Clone list with all items          |
+| `/lista/<id>/partilhar/`               | POST   | Share list with a user             |
+| `/lista/<id>/link/criar/`              | POST   | Create a public share link         |
+| `/responder-link/`                       | POST   | Accept/reject shared list popup    |
+| `/adicionar/`                            | POST   | Add item                           |
+| `/editar/<id>/`                          | POST   | Edit item                          |
+| `/apagar/<id>/`                          | POST   | Delete item                        |
+| `/toggle/<id>/`                          | POST   | Toggle item between pantry/to-buy  |
+| `/link/<token>/`                         | GET    | View list via public link          |
 
 ---
 
-## Tecnologias
+## Tech Stack
 
-- **Backend:** Django 4.2.28
-- **Base de dados:** MySQL (mysqlclient 2.2.7)
-- **Frontend:** HTML5, CSS3 (dark theme inline), JavaScript vanilla
+- **Backend:** Django 4.2, Gunicorn, WhiteNoise
+- **Database:** MySQL (mysqlclient)
+- **Frontend:** HTML5, CSS3 (dark theme), vanilla JavaScript
+- **Containerization:** Docker, Docker Compose
+- **Reverse Proxy:** Caddy (automatic HTTPS)
 - **Python:** 3.13
-- **Pillow:** 12.1.0
 
 ---
 
-## Notas
+## Notes
 
-- O campo quantidade aceita texto livre (ex: `2x`, `500g`, `1L`, `3 unidades`)
-- Nomes de artigos suportam caracteres especiais, acentos e emojis
-- A ordenação dos artigos é alfabética por nome
-- `ALLOWED_HOSTS = ['*']` está configurado para desenvolvimento — restringir em produção
+- The quantity field accepts free text (e.g., `2x`, `500g`, `1L`, `3 units`)
+- Item names support special characters, accents, and emojis
+- Lists are sorted by most recent first in the hamburger menu
+- Shared lists display a people icon next to the list name
+- Public share links can be configured with an expiration date and granular permissions
+- The clone feature creates an independent copy — changes to the clone do not affect the original
