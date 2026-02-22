@@ -90,6 +90,45 @@
             font-size: 0.95rem;
             text-align: center;
         }
+        .password-wrapper {
+            position: relative;
+        }
+        .password-wrapper input {
+            padding-right: 44px;
+        }
+        .toggle-pw {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(calc(-50% - 6px));
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 4px;
+            line-height: 1;
+        }
+        .toggle-pw:active { color: #ccc; }
+        .remember-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .remember-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: #888;
+            cursor: pointer;
+        }
+        .remember-row label {
+            font-size: 0.9rem;
+            color: #888;
+            cursor: pointer;
+            user-select: none;
+        }
     </style>
 </head>
 <body>
@@ -102,8 +141,15 @@
             {% csrf_token %}
             {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
             <input type="text" name="username" placeholder="Nome de utilizador" required autocomplete="username">
-            <input type="password" id="password" placeholder="Palavra-passe" required autocomplete="current-password">
+            <div class="password-wrapper">
+                <input type="password" id="password" placeholder="Palavra-passe" required autocomplete="current-password">
+                <button type="button" class="toggle-pw" id="togglePw" tabindex="-1" aria-label="Mostrar palavra-passe">&#128065;</button>
+            </div>
             <input type="hidden" name="password_hash" id="password_hash">
+            <div class="remember-row">
+                <input type="checkbox" id="rememberMe">
+                <label for="rememberMe">Lembrar-me</label>
+            </div>
             <button type="submit" class="btn-primary">Entrar</button>
         </form>
         <p class="link">Não tem conta? <a href="{% url 'registar' %}{% if next %}?next={{ next }}{% endif %}">Registar</a></p>
@@ -206,6 +252,31 @@
             el.style.display = 'block';
         }
 
+        /* ── Toggle visibilidade da password ── */
+        document.getElementById('togglePw').addEventListener('click', function() {
+            var pwField = document.getElementById('password');
+            var isHidden = pwField.type === 'password';
+            pwField.type = isHidden ? 'text' : 'password';
+            this.innerHTML = isHidden ? '&#128064;' : '&#128065;';
+        });
+
+        /* ── Lembrar credenciais (localStorage) ── */
+        var rememberCb = document.getElementById('rememberMe');
+        var usernameField = document.querySelector('input[name="username"]');
+        var passwordField = document.getElementById('password');
+
+        (function loadSaved() {
+            var saved = localStorage.getItem('listaisto_remember');
+            if (saved) {
+                try {
+                    var data = JSON.parse(saved);
+                    usernameField.value = data.u || '';
+                    passwordField.value = data.p || '';
+                    rememberCb.checked = true;
+                } catch(e) {}
+            }
+        })();
+
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             var form = this;
@@ -214,6 +285,11 @@
             hashPassword(pw).then(function(hashHex) {
                 if (!hashHex) { showJsError('Erro ao processar a palavra-passe.'); return; }
                 document.getElementById('password_hash').value = hashHex;
+                if (rememberCb.checked) {
+                    localStorage.setItem('listaisto_remember', JSON.stringify({u: usernameField.value, p: pw}));
+                } else {
+                    localStorage.removeItem('listaisto_remember');
+                }
                 document.getElementById('password').value = '';
                 form.submit();
             }).catch(function(err) {
