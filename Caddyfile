@@ -18,6 +18,7 @@ http://localhost {
     reverse_proxy web:8000
 }
 
-www.listaisto.pt {
-    redir https://listaisto.pt{uri} permanent
-}
+# NOTA: Descomentar quando o DNS de www.listaisto.pt apontar para este servidor (46.225.70.153)
+# www.listaisto.pt {
+#     redir https://listaisto.pt{uri} permanent
+# }
