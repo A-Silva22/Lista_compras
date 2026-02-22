@@ -1,3 +1,7 @@
 from django.contrib import admin
+from .models import Lista, ListaPartilha, LinkPartilha, Artigo
 
-# Register your models here.
+admin.site.register(Lista)
+admin.site.register(ListaPartilha)
+admin.site.register(LinkPartilha)
+admin.site.register(Artigo)

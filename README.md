@@ -22,10 +22,14 @@ A collaborative shopping list web application built with **Django** and **MySQL*
 - **Edit** name and quantity of any item
 - **Delete** items with confirmation
 - **Checkbox** — Checking a pantry item moves it to "To Buy"; unchecking returns it to the pantry
+- **Search** — Magnifying glass icon in the bottom bar toggles search mode, filtering items in real-time across both lists
+- **Race-condition safe** — When two users click the same item simultaneously, the action is idempotent (both move it to the same destination instead of toggling back and forth)
 - **Real-time updates** — Automatic polling for changes made by other users
 - **User authentication** — Registration, login, and profile management
+- **Admin panel** — Django admin at `/admin/` for managing users, lists, items, and shares
 - Support for **special characters** and long text
 - **Dark mode** UI, modern and optimized for **mobile devices**
+- **PWA support** — Installable as a Progressive Web App with proper icons and manifest
 - **Custom favicon** with SVG, PNG, and ICO formats for sharp display across all browsers
 
 ---
@@ -99,10 +103,17 @@ This starts three services:
 - **web** — Django app served by Gunicorn + WhiteNoise for static files
 - **caddy** — Reverse proxy with automatic HTTPS
 
-### 4. Access the app
+### 4. Create an admin superuser
+
+```bash
+sudo docker compose exec web python manage.py createsuperuser
+```
+
+### 5. Access the app
 
 - **Local:** http://localhost
 - **Production:** https://your-domain.com (configured in `Caddyfile`)
+- **Admin panel:** https://your-domain.com/admin/
 
 ---
 
@@ -160,18 +171,19 @@ This starts three services:
 | `/entrar/`                               | POST   | Login                              |
 | `/sair/`                                 | POST   | Logout                             |
 | `/lista/criar/`                          | POST   | Create new list                    |
-| `/lista/<id>/selecionar/`               | GET    | Switch active list                 |
-| `/lista/<id>/renomear/`                 | POST   | Rename list                        |
-| `/lista/<id>/apagar/`                   | POST   | Delete list                        |
-| `/lista/<id>/clonar/`                   | POST   | Clone list with all items          |
-| `/lista/<id>/partilhar/`               | POST   | Share list with a user             |
-| `/lista/<id>/link/criar/`              | POST   | Create a public share link         |
+| `/lista/<id>/selecionar/`                | GET    | Switch active list                 |
+| `/lista/<id>/renomear/`                  | POST   | Rename list                        |
+| `/lista/<id>/apagar/`                    | POST   | Delete list                        |
+| `/lista/<id>/clonar/`                    | POST   | Clone list with all items          |
+| `/lista/<id>/partilhar/`                 | POST   | Share list with a user             |
+| `/lista/<id>/link/criar/`                | POST   | Create a public share link         |
 | `/responder-link/`                       | POST   | Accept/reject shared list popup    |
 | `/adicionar/`                            | POST   | Add item                           |
 | `/editar/<id>/`                          | POST   | Edit item                          |
 | `/apagar/<id>/`                          | POST   | Delete item                        |
-| `/toggle/<id>/`                          | POST   | Toggle item between pantry/to-buy  |
+| `/toggle/<id>/`                          | POST   | Move item to pantry or to-buy (explicit destination) |
 | `/link/<token>/`                         | GET    | View list via public link          |
+| `/admin/`                                | GET    | Django admin panel                 |
 
 ---
 
@@ -194,3 +206,6 @@ This starts three services:
 - Shared lists display a people icon next to the list name
 - Public share links can be configured with an expiration date and granular permissions
 - The clone feature creates an independent copy — changes to the clone do not affect the original
+- The toggle action sends an explicit destination (`destino=despensa` or `destino=comprar`) to prevent race conditions when multiple users click the same item simultaneously
+- The admin superuser must be created via `docker compose exec web python manage.py createsuperuser` (not via the frontend, since the frontend SHA-256 hashes passwords)
+- After changing static files, run `docker compose exec web python manage.py collectstatic --noinput`

@@ -151,4 +151,5 @@ LOGIN_REDIRECT_URL = 'index'
 
 AUTHENTICATION_BACKENDS = [
     'compras.backends.HashedPasswordBackend',
+    'django.contrib.auth.backends.ModelBackend',
 ]

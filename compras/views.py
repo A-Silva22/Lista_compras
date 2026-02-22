@@ -322,7 +322,13 @@ def toggle(request, pk):
     if artigo.lista and not _pode_aceder_lista(request.user, artigo.lista):
         return redirect('index')
     if request.method == 'POST':
-        artigo.comprar = not artigo.comprar
+        destino = request.POST.get('destino')
+        if destino == 'despensa':
+            artigo.comprar = False
+        elif destino == 'comprar':
+            artigo.comprar = True
+        else:
+            artigo.comprar = not artigo.comprar
         artigo.save()
     return redirect('index')
 
@@ -472,7 +478,13 @@ def link_toggle(request, token, pk):
         return redirect('ver_link', token=token)
     artigo = get_object_or_404(Artigo, pk=pk, lista=link.lista)
     if request.method == 'POST':
-        artigo.comprar = not artigo.comprar
+        destino = request.POST.get('destino')
+        if destino == 'despensa':
+            artigo.comprar = False
+        elif destino == 'comprar':
+            artigo.comprar = True
+        else:
+            artigo.comprar = not artigo.comprar
         artigo.save()
     return redirect('ver_link', token=token)
 

@@ -424,6 +424,7 @@
                 {% if link.pode_toggle %}
                 <form class="toggle-form" method="POST" action="{% url 'link_toggle' token artigo.pk %}">
                     {% csrf_token %}
+                    <input type="hidden" name="destino" value="despensa">
                     <button type="submit" class="item-name">{{ artigo.nome }}</button>
                 </form>
                 {% else %}
@@ -466,6 +467,7 @@
                     {% if link.pode_toggle %}
                     <form class="toggle-form" method="POST" action="{% url 'link_toggle' token artigo.pk %}">
                         {% csrf_token %}
+                        <input type="hidden" name="destino" value="comprar">
                         <button type="submit" class="item-name">{{ artigo.nome }}</button>
                     </form>
                     {% else %}

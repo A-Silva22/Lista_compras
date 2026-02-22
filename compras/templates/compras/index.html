@@ -375,6 +375,34 @@
             background-color: #bbb;
         }
 
+        .btn-search-toggle {
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background: transparent;
+            color: #888;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-search-toggle:active { background: #222; }
+
+        .btn-search-toggle.active {
+            background: #e0e0e0;
+            color: #111;
+            border-color: #e0e0e0;
+        }
+
+        .item.search-hidden {
+            display: none !important;
+        }
+
         /* ── Modals ── */
         .modal-overlay {
             display: none;
@@ -937,6 +965,7 @@
             <li class="item">
                 <form class="toggle-form" method="POST" action="{% url 'toggle' artigo.pk %}">
                     {% csrf_token %}
+                    <input type="hidden" name="destino" value="despensa">
                     <button type="submit" class="item-name">{{ artigo.nome }}</button>
                 </form>
                 <div class="menu-wrapper">
@@ -967,6 +996,7 @@
                 <li class="item despensa-item">
                     <form class="toggle-form" method="POST" action="{% url 'toggle' artigo.pk %}">
                         {% csrf_token %}
+                        <input type="hidden" name="destino" value="comprar">
                         <button type="submit" class="item-name">{{ artigo.nome }}</button>
                     </form>
                     <div class="menu-wrapper">
@@ -993,10 +1023,13 @@
     {% if lista_ativa %}
     <!-- Add item bar (fixed at bottom) -->
     <div class="add-bar">
-        <form class="add-form" method="POST" action="{% url 'adicionar' %}">
+        <form class="add-form" id="addForm" method="POST" action="{% url 'adicionar' %}">
             {% csrf_token %}
-            <input type="text" name="nome" placeholder="Novo artigo..." required autocomplete="off">
-            <button type="submit" class="btn-submit">+</button>
+            <input type="text" name="nome" id="addInput" placeholder="Novo artigo..." required autocomplete="off">
+            <button type="submit" class="btn-submit" id="addBtn">+</button>
+            <button type="button" class="btn-search-toggle" id="searchToggle" onclick="toggleSearchMode()" title="Pesquisar artigos">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
         </form>
     </div>
     {% endif %}
@@ -1498,6 +1531,60 @@
                 }
             });
         });
+
+        /* ── Search mode ── */
+        var searchMode = false;
+
+        function toggleSearchMode() {
+            searchMode = !searchMode;
+            var input = document.getElementById('addInput');
+            var addBtn = document.getElementById('addBtn');
+            var toggle = document.getElementById('searchToggle');
+            var form = document.getElementById('addForm');
+            if (searchMode) {
+                toggle.classList.add('active');
+                addBtn.style.display = 'none';
+                input.placeholder = 'Pesquisar artigo...';
+                input.removeAttribute('required');
+                input.value = '';
+                input.addEventListener('input', filterItems);
+                form.addEventListener('submit', preventSubmitInSearch);
+                input.focus();
+            } else {
+                toggle.classList.remove('active');
+                addBtn.style.display = '';
+                input.placeholder = 'Novo artigo...';
+                input.setAttribute('required', '');
+                input.value = '';
+                input.removeEventListener('input', filterItems);
+                form.removeEventListener('submit', preventSubmitInSearch);
+                clearFilter();
+            }
+        }
+
+        function preventSubmitInSearch(e) {
+            e.preventDefault();
+        }
+
+        function filterItems() {
+            var query = document.getElementById('addInput').value.toLowerCase().trim();
+            document.querySelectorAll('.item').forEach(function(item) {
+                var nameBtn = item.querySelector('.item-name');
+                if (!nameBtn) return;
+                var name = nameBtn.textContent.toLowerCase();
+                if (!query || name.indexOf(query) !== -1) {
+                    item.classList.remove('search-hidden');
+                } else {
+                    item.classList.add('search-hidden');
+                }
+            });
+        }
+
+        function clearFilter() {
+            document.querySelectorAll('.item.search-hidden').forEach(function(item) {
+                item.classList.remove('search-hidden');
+            });
+        }
 
         /* Auto-refresh polling — checks every 3 seconds */
         var lastTs = '';
