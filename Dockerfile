@@ -45,9 +45,8 @@ RUN mkdir -p /app/staticfiles && chown django:django /app/staticfiles
 
 USER django
 
-# Collect static files (will fail gracefully if SECRET_KEY not set at build time)
-RUN python manage.py collectstatic --noinput || true
+COPY entrypoint.sh /app/entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["gunicorn", "lista_compras.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+ENTRYPOINT ["sh", "/app/entrypoint.sh"]
