@@ -1,3 +1,4 @@
+import hashlib
 from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth import get_user_model
 
@@ -24,6 +25,11 @@ class HashedPasswordBackend(BaseBackend):
             return None
         if user.check_password(secret):
             return user
+        # If plain password was provided (e.g. Django admin), try SHA-256 hashing it
+        if password and not password_hash:
+            hashed = hashlib.sha256(password.encode()).hexdigest()
+            if user.check_password(hashed):
+                return user
         return None
 
     def get_user(self, user_id):
