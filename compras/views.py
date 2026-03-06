@@ -5,6 +5,12 @@ from django.http import JsonResponse
 from django.contrib.auth import login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.conf import settings as django_settings
+from django.template.loader import render_to_string
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 from django.db.models import Q, Count
 from django.utils import timezone
 from .models import Artigo, Lista, ListaPartilha, LinkPartilha
@@ -106,6 +112,9 @@ def entrar(request):
         if user:
             login(request, user, backend='compras.backends.HashedPasswordBackend')
             _associar_link_lista(request, user)
+            if not user.email:
+                request.session['next_after_email'] = next_url or ''
+                return redirect('adicionar_email')
             if request.session.get('pending_link_token'):
                 return redirect('index')
             if next_url:
@@ -119,6 +128,96 @@ def entrar(request):
 def sair(request):
     logout(request)
     return redirect('entrar')
+
+
+@login_required
+def adicionar_email(request):
+    """Prompt user to add email if they don't have one yet."""
+    if request.user.email:
+        return redirect('index')
+    erro = ''
+    sucesso = False
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        if not email:
+            erro = 'Introduza um endereço de email.'
+        elif User.objects.filter(email=email).exclude(pk=request.user.pk).exists():
+            erro = 'Este email já está associado a outra conta.'
+        else:
+            request.user.email = email
+            request.user.save()
+            next_url = request.session.pop('next_after_email', '')
+            if request.session.get('pending_link_token'):
+                return redirect('index')
+            if next_url:
+                return redirect(next_url)
+            return redirect('index')
+    return render(request, 'compras/adicionar_email.html', {'erro': erro})
+
+
+def recuperar_password(request):
+    """User enters email to receive password reset link."""
+    if request.user.is_authenticated:
+        return redirect('index')
+    enviado = False
+    erro = ''
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        if not email:
+            erro = 'Introduza o seu email.'
+        else:
+            try:
+                user = User.objects.get(email=email)
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                reset_url = request.build_absolute_uri(
+                    f'/reset-password/{uid}/{token}/'
+                )
+                corpo = render_to_string('compras/email_reset.html', {
+                    'user': user,
+                    'reset_url': reset_url,
+                })
+                send_mail(
+                    'Recuperação de palavra-passe — ListaIsto',
+                    corpo,
+                    django_settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+            except User.DoesNotExist:
+                pass
+            enviado = True
+    return render(request, 'compras/recuperar_password.html', {
+        'enviado': enviado, 'erro': erro,
+    })
+
+
+def reset_password(request, uidb64, token):
+    """User sets a new password via the emailed link."""
+    if request.user.is_authenticated:
+        return redirect('index')
+    erro = ''
+    sucesso = False
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+    if user is None or not default_token_generator.check_token(user, token):
+        return render(request, 'compras/reset_password.html', {
+            'invalido': True,
+        })
+    if request.method == 'POST':
+        password_hash = request.POST.get('password_hash', '').strip()
+        if not password_hash:
+            erro = 'Introduza uma nova palavra-passe.'
+        else:
+            user.password = make_password(password_hash)
+            user.save()
+            sucesso = True
+    return render(request, 'compras/reset_password.html', {
+        'erro': erro, 'sucesso': sucesso, 'invalido': False,
+    })
 
 
 # ── Main index ───────────────────────────────────────────────────

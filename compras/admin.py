@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import AdminPasswordChangeForm, UserCreationForm
 from django.contrib.auth import get_user_model
-from .models import Lista, ListaPartilha, LinkPartilha, Artigo
+from .models import Lista, ListaPartilha, LinkPartilha
 
 User = get_user_model()
 
@@ -42,4 +42,3 @@ admin.site.register(User, SHA256UserAdmin)
 admin.site.register(Lista)
 admin.site.register(ListaPartilha)
 admin.site.register(LinkPartilha)
-admin.site.register(Artigo)
