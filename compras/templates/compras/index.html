@@ -103,6 +103,71 @@
         .user-dropdown a:active,
         .user-dropdown button:active { background-color: #333; }
 
+        /* ── Contact popup ── */
+        .contact-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .contact-overlay.active { display: flex; }
+        .contact-popup {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 14px;
+            padding: 24px;
+            width: 90%;
+            max-width: 340px;
+            text-align: center;
+        }
+        .contact-popup h3 {
+            color: #e0e0e0;
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+        }
+        .contact-email-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+        }
+        .contact-email-row span {
+            flex: 1;
+            color: #ccc;
+            font-size: 1rem;
+            user-select: all;
+            word-break: break-all;
+        }
+        .contact-copy-btn {
+            background: #e0e0e0;
+            color: #111;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .contact-copy-btn:active { background: #bbb; }
+        .contact-close-btn {
+            background: none;
+            border: 1px solid #444;
+            color: #aaa;
+            border-radius: 10px;
+            padding: 8px 20px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .contact-close-btn:active { background: #333; }
+
         /* ── List bar (menu + scrollable tabs) ── */
         .list-bar {
             display: flex;
@@ -927,8 +992,21 @@
                     {{ user.username }} ▾
                 </button>
                 <div class="user-dropdown" id="userDropdown">
+                    <button type="button" onclick="openContactPopup(); toggleUserMenu();">Contactos</button>
                     <a href="{% url 'sair' %}">Sair</a>
                 </div>
+            </div>
+        </div>
+
+        <!-- Contact popup -->
+        <div class="contact-overlay" id="contactOverlay" onclick="if(event.target===this)closeContactPopup();">
+            <div class="contact-popup">
+                <h3>Contactos</h3>
+                <div class="contact-email-row">
+                    <span id="contactEmail">geral@listaisto.pt</span>
+                    <button type="button" class="contact-copy-btn" onclick="copyContactEmail()">Copiar</button>
+                </div>
+                <button type="button" class="contact-close-btn" onclick="closeContactPopup()">Fechar</button>
             </div>
         </div>
 
@@ -1216,6 +1294,33 @@
         /* User menu */
         function toggleUserMenu() {
             document.getElementById('userDropdown').classList.toggle('open');
+        }
+
+        /* Contact popup */
+        function openContactPopup() {
+            document.getElementById('contactOverlay').classList.add('active');
+        }
+        function closeContactPopup() {
+            document.getElementById('contactOverlay').classList.remove('active');
+        }
+        function copyContactEmail() {
+            var email = document.getElementById('contactEmail').textContent;
+            var btn = document.querySelector('.contact-copy-btn');
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(email).then(function() {
+                    btn.textContent = 'Copiado!';
+                    setTimeout(function() { btn.textContent = 'Copiar'; }, 2000);
+                });
+            } else {
+                var range = document.createRange();
+                range.selectNodeContents(document.getElementById('contactEmail'));
+                var sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+                document.execCommand('copy');
+                btn.textContent = 'Copiado!';
+                setTimeout(function() { btn.textContent = 'Copiar'; }, 2000);
+            }
         }
 
         /* List menu (three dots in tab bar) */
