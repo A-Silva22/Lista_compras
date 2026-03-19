@@ -1713,5 +1713,14 @@
         setInterval(pollUpdates, 3000);
         pollUpdates();
     </script>
+    <!-- Cookie info banner -->
+    <div id="cookieBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;border-top:1px solid #333;padding:16px 20px;z-index:9999;font-size:0.9rem;color:#aaa;">
+        <div style="max-width:500px;margin:0 auto;">
+            <p style="margin:0 0 8px;color:#ccc;font-weight:600;">Cookies essenciais</p>
+            <p style="margin:0 0 12px;line-height:1.5;">Este site utiliza apenas cookies estritamente necessários para o seu funcionamento — autenticação (manter a sessão iniciada) e segurança (proteção contra ataques). Não utilizamos cookies de rastreamento, publicidade ou análise.</p>
+            <button onclick="document.getElementById('cookieBanner').style.display='none';localStorage.setItem('listaisto_cookie_ok','1');" style="background:#e0e0e0;color:#111;border:none;border-radius:8px;padding:8px 20px;font-size:0.9rem;font-weight:700;cursor:pointer;">Entendido</button>
+        </div>
+    </div>
+    <script>if(!localStorage.getItem('listaisto_cookie_ok')){document.getElementById('cookieBanner').style.display='block';}</script>
 </body>
 </html>
