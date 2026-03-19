@@ -34,6 +34,49 @@ A collaborative shopping list web application built with **Django** and **MySQL*
 
 ---
 
+## Screenshots
+
+### Login
+![Login](images_site_ListaIsto/1_entrar.png)
+
+### Register
+![Register](images_site_ListaIsto/2_registar.png)
+
+### Main View (Account)
+![Main View](images_site_ListaIsto/3_conta.png)
+
+### List Options
+![List Options](images_site_ListaIsto/4_opçoes_listas.png)
+
+### Add List
+![Add List](images_site_ListaIsto/5_add_lista.png)
+
+### Share List by Name
+![Share List by Name](images_site_ListaIsto/6_partilhar_lista_por_nome.png)
+
+### Share List via Link
+![Share List via Link](images_site_ListaIsto/7_partilhar_lista_link.png)
+
+### Share Link — Copy Link
+![Share Link Copy](images_site_ListaIsto/11_partilhar_lista_link_copiar_link.png)
+
+### Shared List (Public Link View)
+![Shared List Link](images_site_ListaIsto/12_lista_partilhada_link.png)
+
+### Edit / Delete Item
+![Edit Delete Item](images_site_ListaIsto/8_editar_apagar_artigo.png)
+
+### Add / Search Item
+![Add Search Item](images_site_ListaIsto/9_adicionar_procurar_artigo.png)
+
+### Contacts & Logout Menu
+![Contacts Logout](images_site_ListaIsto/10_opçoes_contacto_logout.png)
+
+### Clone List
+![Clone List](images_site_ListaIsto/13_clonar_lista.png)
+
+---
+
 ## Requirements
 
 - Docker & Docker Compose
