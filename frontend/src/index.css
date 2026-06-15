@@ -162,7 +162,7 @@ html[data-theme="light"] .section-collapsible > summary.section-title:hover { ba
 .icon-btn:hover { background: #1f1f1f; color: #ccc; }
 .icon-btn.danger:hover { background: #3a1c1c; color: #f88; border-color: #5a2c2c; }
 .empty-msg { color: #444; font-size: 1rem; padding: 12px 4px; font-style: italic; }
-.divider { border: none; border-top: 1px solid #1f1f1f; margin: 18px 0; }
+.divider { border: none; border-top: 1px solid #3a3a3a; margin: 18px 0; }
 
 details.section-collapsible { margin-bottom: 14px; }
 details.section-collapsible > summary::-webkit-details-marker { display: none; }

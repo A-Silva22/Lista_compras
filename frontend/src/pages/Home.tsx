@@ -198,8 +198,8 @@ function UserMenu(p: {
 }) {
   return (
     <div className="user-menu-wrapper">
-      <button className="user-btn" onClick={() => p.setOpen(!p.open)}>
-        <PeopleIcon /> <span className="user-btn-name">{p.me}</span> ▾
+      <button className="user-btn" onClick={() => p.setOpen(!p.open)} aria-label="Conta" title={p.me}>
+        <PeopleIcon /> ▾
       </button>
       <div className={'user-dropdown' + (p.open ? ' open' : '')} onClick={e => e.stopPropagation()}>
         <button onClick={p.onProfile}>Perfil</button>
