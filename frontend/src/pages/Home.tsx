@@ -44,6 +44,18 @@ export default function Home() {
   const [openItemMenu, setOpenItemMenu] = useState<number | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [flashId, setFlashId] = useState<number | null>(null)
+  const flashTimer = useRef<number | undefined>(undefined)
+
+  // Briefly pulse + scroll to an item that already exists, instead of adding
+  // a duplicate.
+  const flashItem = useCallback((id: number) => {
+    setFlashId(id)
+    setTimeout(() => document.getElementById('item-' + id)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
+    window.clearTimeout(flashTimer.current)
+    flashTimer.current = window.setTimeout(() => setFlashId(null), 1500)
+  }, [])
 
   const refreshLists = useCallback(async () => {
     const r = await api.lists()
@@ -135,13 +147,13 @@ export default function Home() {
         {!detail ? (
           <p className="empty-msg">Crie uma lista para começar.</p>
         ) : (
-          <Lists detail={detail} setDetail={setDetail}
+          <Lists detail={detail} setDetail={setDetail} flashId={flashId}
             openItemMenu={openItemMenu} setOpenItemMenu={setOpenItemMenu}
             onEdit={it => { setEditing(it); setOpenItemMenu(null) }} />
         )}
       </div>
 
-      {detail && <AddBar lid={detail.id} setDetail={setDetail} />}
+      {detail && <AddBar lid={detail.id} setDetail={setDetail} onDuplicate={flashItem} />}
 
       {detail && (
         <>
@@ -269,7 +281,7 @@ function Header(p: {
 
 // ── Lists region (a comprar / despensa) ──
 function Lists(p: {
-  detail: ListDetail; setDetail: (d: ListDetail) => void
+  detail: ListDetail; setDetail: (d: ListDetail) => void; flashId: number | null
   openItemMenu: number | null; setOpenItemMenu: (n: number | null) => void
   onEdit: (it: Item) => void
 }) {
@@ -285,7 +297,7 @@ function Lists(p: {
       {items.length === 0 ? <p className="empty-msg">{emptyMsg}</p> : (
         <ul className="item-list">
           {items.map(it => (
-            <li key={it.id} className="item">
+            <li key={it.id} id={'item-' + it.id} className={'item' + (it.id === p.flashId ? ' flash' : '')}>
               <button className="item-name" onClick={() => toggle(it)}>{it.nome}</button>
               <div className="menu-wrapper" onClick={e => e.stopPropagation()}>
                 <button className="menu-btn" onClick={() => p.setOpenItemMenu(p.openItemMenu === it.id ? null : it.id)}>⋮</button>
@@ -311,7 +323,7 @@ function Lists(p: {
 }
 
 // ── Add bar (with search mode + duplicate banner) ──
-function AddBar(p: { lid: number; setDetail: (d: ListDetail) => void }) {
+function AddBar(p: { lid: number; setDetail: (d: ListDetail) => void; onDuplicate: (id: number) => void }) {
   const [nome, setNome] = useState('')
   const [searchMode, setSearchMode] = useState(false)
   const [sugs, setSugs] = useState<string[]>([])
@@ -339,7 +351,14 @@ function AddBar(p: { lid: number; setDetail: (d: ListDetail) => void }) {
     e.preventDefault()
     if (searchMode) return
     const v = nome.trim(); if (!v) return
-    p.setDetail(await api.addItem(p.lid, v))
+    // If it's already on the list, flash the existing item instead of adding
+    // a duplicate.
+    const dup = await api.match(p.lid, v)
+    if (dup.found && dup.id) {
+      p.onDuplicate(dup.id)
+    } else {
+      p.setDetail(await api.addItem(p.lid, v))
+    }
     // preventScroll: on mobile the add bar is fixed at the bottom; refocusing
     // it without this makes the browser scroll the page down into the dark
     // padding zone. Keep the viewport where it is (at the top).
