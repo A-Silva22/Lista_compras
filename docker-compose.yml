@@ -34,18 +34,40 @@ services:
     networks:
       - app_network
 
+  rust:
+    build: ./rust_backend
+    restart: always
+    expose:
+      - "8766"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      RUST_PORT: 8766
+      RUST_BIND: 0.0.0.0
+      RUST_LOG: info,sqlx=warn,tower_http=info
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+    networks:
+      - app_network
+
   caddy:
-    image: caddy:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
     restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - web
+      - rust
     networks:
       - app_network
 

@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+{% block title %}{% if active_id != 0 %}{{ active_nome }} — {% endif %}ListaIsto{% endblock %}
+{% block content %}
+<div class="container">
+
+  <!-- Top bar: hamburger + active list name + menu + new list + user -->
+  <div class="list-bar">
+    <div class="hamburger-wrapper">
+      <button type="button" class="hamburger-btn" data-toggle="hamburgerPanel" onclick="toggle('hamburgerPanel')">☰</button>
+      <div class="hamburger-panel" id="hamburgerPanel">
+        {% if lists.is_empty() %}
+          <div style="padding:10px 16px;color:#666;">Sem listas.</div>
+        {% endif %}
+        {% for l in lists %}
+          <a href="/lista/{{ l.id }}/selecionar" class="{% if active_id == l.id %}active{% endif %}">
+            <span class="list-name-text">{{ l.nome }}</span>
+            {% if l.shared %}<span class="share-ic" title="Lista partilhada"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if active_id != 0 %}
+    <div class="list-menu-wrapper">
+      <button type="button" class="list-menu-btn" data-toggle="listMenuDropdown" onclick="toggle('listMenuDropdown')">⋮</button>
+      <div class="list-menu-dropdown" id="listMenuDropdown" style="left:0;right:auto;">
+        <button type="button" onclick="document.getElementById('shareModal').classList.add('open');toggle('listMenuDropdown')">Partilhar com utilizador</button>
+        <button type="button" onclick="document.getElementById('linkModal').classList.add('open');toggle('listMenuDropdown')">Partilhar por link</button>
+        <form method="POST" action="/lista/{{ active_id }}/apagar" onsubmit="return confirm('Apagar a lista «{{ active_nome }}» e todos os artigos?');">
+          <button type="submit" class="danger">Apagar lista</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <span class="active-list-name">
+      <img src="/static/logo3.png" alt="">
+      {% if active_id != 0 %}{{ active_nome }}{% else %}ListaIsto.{% endif %}
+    </span>
+
+    <form method="POST" action="/lista/criar" id="createListForm" style="display:flex;gap:6px;flex-shrink:0;margin:0;"
+          onsubmit="return createList(event);">
+      <input type="hidden" name="nome" value="">
+      <button type="submit" class="list-tab-add" title="Nova lista">+</button>
+    </form>
+
+    <button type="button" class="theme-toggle" id="themeToggle" title="Tema claro / escuro" onclick="toggleTheme()" aria-label="Alternar tema">☀</button>
+
+    <div class="user-menu-wrapper">
+      <button type="button" class="user-btn" data-toggle="userDropdown" onclick="toggle('userDropdown')">{{ username }} ▾</button>
+      <div class="user-dropdown" id="userDropdown">
+        <a href="#" onclick="event.preventDefault();document.getElementById('contactModal').classList.add('open');toggle('userDropdown')">Contactos</a>
+        <form method="POST" action="/sair/">
+          <button type="submit">Sair</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {% if active_id == 0 %}
+    <p class="empty-msg">Crie uma lista para começar.</p>
+  {% else %}
+  <div id="listsRegion">
+
+    <!-- A comprar -->
+    <div class="section-title">
+      Artigos a comprar
+      <span class="count">{{ a_comprar.len() }}</span>
+    </div>
+    {% if a_comprar.is_empty() %}
+      <p class="empty-msg">Nenhum artigo para comprar.</p>
+    {% else %}
+      <ul class="item-list">
+        {% for art in a_comprar %}
+        <li class="item" data-artigo-id="{{ art.id }}">
+          <form method="POST" action="/artigo/{{ art.id }}/toggle" style="flex:1;min-width:0;display:contents;">
+            <input type="hidden" name="destino" value="despensa">
+            <button type="submit" class="item-name">{{ art.nome }}</button>
+          </form>
+          <div class="menu-wrapper">
+            <button type="button" class="menu-btn" data-toggle="menu-{{ art.id }}" onclick="toggle('menu-{{ art.id }}')">⋮</button>
+            <div class="menu-dropdown" id="menu-{{ art.id }}">
+              <button type="button" onclick="openEdit({{ art.id }}, this.dataset.nome, this.dataset.qty)" data-nome="{{ art.nome }}" data-qty="{{ art.quantidade }}">✎ Editar</button>
+              <form method="POST" action="/artigo/{{ art.id }}/apagar" onsubmit="return confirm('Apagar «{{ art.nome }}»?');">
+                <button type="submit" class="danger">✕ Apagar</button>
+              </form>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <hr class="divider">
+
+    <!-- Despensa -->
+    <div class="section-title">
+      Despensa
+      <span class="count">{{ despensa.len() }}</span>
+    </div>
+    {% if despensa.is_empty() %}
+      <p class="empty-msg">Despensa vazia.</p>
+    {% else %}
+      <ul class="item-list">
+        {% for art in despensa %}
+        <li class="item" data-artigo-id="{{ art.id }}">
+          <form method="POST" action="/artigo/{{ art.id }}/toggle" style="flex:1;min-width:0;display:contents;">
+            <input type="hidden" name="destino" value="comprar">
+            <button type="submit" class="item-name">{{ art.nome }}</button>
+          </form>
+          <div class="menu-wrapper">
+            <button type="button" class="menu-btn" data-toggle="menu-d-{{ art.id }}" onclick="toggle('menu-d-{{ art.id }}')">⋮</button>
+            <div class="menu-dropdown" id="menu-d-{{ art.id }}">
+              <button type="button" onclick="openEdit({{ art.id }}, this.dataset.nome, this.dataset.qty)" data-nome="{{ art.nome }}" data-qty="{{ art.quantidade }}">✎ Editar</button>
+              <form method="POST" action="/artigo/{{ art.id }}/apagar" onsubmit="return confirm('Apagar «{{ art.nome }}»?');">
+                <button type="submit" class="danger">✕ Apagar</button>
+              </form>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if active_id != 0 %}
+<!-- Match banner — appears above add bar when typed name already exists in active list. -->
+<div id="matchBanner" hidden style="position:fixed;bottom:74px;left:0;right:0;z-index:480;padding:0 12px;">
+  <div style="max-width:600px;margin:0 auto;background:#1a1a1a;border:1px solid #333;border-left:3px solid #888;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:.9rem;">
+    <span id="matchText" style="flex:1;color:#ccc;"></span>
+    <form id="matchToggleForm" method="POST" action="" style="margin:0;">
+      <input type="hidden" name="destino" id="matchDestino" value="">
+      <button type="submit" id="matchMoveBtn" style="background:#e0e0e0;color:#111;border:0;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;"></button>
+    </form>
+  </div>
+</div>
+
+<!-- Sticky bottom add bar — name only + add + search toggle -->
+<div class="add-bar">
+  <form class="add-form" id="addForm" method="POST" action="/artigo/adicionar" autocomplete="off" style="display:flex;gap:8px;align-items:center;width:100%;">
+    <input type="text" name="nome" id="addInput" placeholder="Novo artigo..." required autocomplete="off" style="flex:1 1 auto;min-width:0;width:auto;">
+    <ul id="addSuggestions" class="suggest" hidden style="position:fixed;"></ul>
+    <button type="submit" class="btn-submit" id="addBtn" title="Adicionar" style="flex:0 0 auto;">+</button>
+    <button type="button" class="btn-search-toggle" id="searchToggle" title="Pesquisar artigos" style="flex:0 0 auto;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+  </form>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>Editar artigo</h3>
+    <form id="editForm" method="POST" action="">
+      <label style="display:block;color:#888;font-size:.85rem;margin-bottom:4px;">Nome</label>
+      <input type="text" name="nome" id="editNome" required style="width:100%;margin-bottom:14px;">
+      <input type="hidden" name="quantidade" id="editQty">
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="btn-ghost" onclick="document.getElementById('editModal').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Contactos popup -->
+<div class="modal-overlay contact-popup" id="contactModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>Contactos</h3>
+    <p style="color:#888;font-size:.9rem;margin:0 0 4px;">Para qualquer questão, contacta-nos por email.</p>
+    <div class="email-row">
+      <span id="contactEmail">geral@listaisto.pt</span>
+      <button type="button" class="copy-btn" onclick="navigator.clipboard.writeText('geral@listaisto.pt');this.textContent='Copiado!';setTimeout(function(){document.querySelector('#contactModal .copy-btn').textContent='Copiar'},1500)">Copiar</button>
+    </div>
+    <button type="button" class="btn-ghost" onclick="document.getElementById('contactModal').classList.remove('open')">Fechar</button>
+  </div>
+</div>
+
+<!-- Share with user modal -->
+<div class="modal-overlay" id="shareModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>Partilhar lista «{{ active_nome }}»</h3>
+    <form method="POST" action="/lista/{{ active_id }}/partilhar" id="shareForm" style="display:flex;gap:8px;">
+      <input type="text" name="username" id="shareUsername" placeholder="Nome de utilizador" required autocomplete="off" style="flex:1 1 auto;min-width:0;">
+      <button type="submit" class="btn-primary" style="width:auto;flex:0 0 auto;padding:10px 14px;white-space:nowrap;">Adicionar</button>
+    </form>
+    <div id="shareFeedback" hidden style="margin-top:10px;padding:8px 10px;border-radius:6px;font-size:.9rem;"></div>
+    <h4 style="margin:18px 0 8px;color:#888;font-size:.9rem;font-weight:600;">Já partilhada com:</h4>
+    {% if partilhas.is_empty() %}
+      <p class="empty-msg">Ninguém ainda.</p>
+    {% else %}
+      <ul class="share-list">
+        {% for p in partilhas %}
+        <li>
+          <span>{{ p.username }}</span>
+          <form method="POST" action="/lista/{{ active_id }}/partilha/{{ p.utilizador_id }}/apagar">
+            <button type="submit" class="icon-btn danger" title="Remover">✕</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <button type="button" class="btn-ghost" style="margin-top:14px;" onclick="document.getElementById('shareModal').classList.remove('open')">Fechar</button>
+  </div>
+</div>
+
+<!-- Share by link modal -->
+<div class="modal-overlay" id="linkModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>Partilhar «{{ active_nome }}» por link</h3>
+    <form method="POST" action="/lista/{{ active_id }}/link/criar" id="linkForm">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <span style="color:#888;font-size:.9rem;">Expira em</span>
+        <input type="number" name="duracao" value="24" min="1" style="width:70px;">
+        <select name="unidade">
+          <option value="minutos">minutos</option>
+          <option value="horas" selected>horas</option>
+          <option value="dias">dias</option>
+        </select>
+      </div>
+      <div class="perm-grid">
+        <label><input type="checkbox" name="pode_toggle"> Marcar comprado</label>
+        <label><input type="checkbox" name="pode_adicionar"> Adicionar artigos</label>
+        <label><input type="checkbox" name="pode_editar"> Editar artigos</label>
+        <label><input type="checkbox" name="pode_apagar"> Apagar artigos</label>
+      </div>
+      <button type="submit" class="btn-primary" style="margin-top:12px;">Gerar link</button>
+      <div id="linkResult" hidden style="margin-top:14px;background:#1c3a22;border:1px solid #2c5a3c;border-radius:10px;padding:12px;">
+        <div style="font-size:.8rem;color:#8f8;font-weight:600;margin-bottom:6px;">Link criado:</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="linkResultUrl" readonly onclick="this.select()" style="flex:1;background:#0f1f12;border:1px solid #2c5a3c;color:#d2ffd6;padding:8px 10px;border-radius:6px;font-size:.9rem;font-family:monospace;">
+          <button type="button" class="icon-btn" id="linkResultCopy" onclick="navigator.clipboard.writeText(document.getElementById('linkResultUrl').value);this.textContent='✓ Copiado'">Copiar</button>
+        </div>
+      </div>
+    </form>
+    <h4 style="margin:18px 0 8px;color:#888;font-size:.9rem;font-weight:600;">Links activos:</h4>
+    {% if links.is_empty() %}
+      <p class="empty-msg">Sem links activos.</p>
+    {% else %}
+      <ul class="share-list">
+        {% for lk in links %}
+        <li style="flex-direction:column;align-items:stretch;gap:6px;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" readonly value="{{ lk.url }}" onclick="this.select();" style="flex:1;background:#111;border:1px solid #333;color:#aaa;padding:6px 8px;border-radius:6px;font-size:.85rem;font-family:monospace;">
+            <button type="button" class="icon-btn" onclick="navigator.clipboard.writeText(window.location.origin+'{{ lk.url }}');this.textContent='✓'">Copiar</button>
+            <form method="POST" action="/lista/{{ active_id }}/link/{{ lk.id }}/apagar" onsubmit="return confirm('Apagar este link?');">
+              <button type="submit" class="icon-btn danger" title="Apagar">✕</button>
+            </form>
+          </div>
+          <div style="font-size:.78rem;color:#666;">
+            expira {{ lk.expira_em_str }} · permissões:
+            {% if lk.pode_toggle %}toggle {% endif %}
+            {% if lk.pode_adicionar %}adicionar {% endif %}
+            {% if lk.pode_editar %}editar {% endif %}
+            {% if lk.pode_apagar %}apagar {% endif %}
+            {% if !lk.pode_toggle && !lk.pode_adicionar && !lk.pode_editar && !lk.pode_apagar %}só leitura{% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <button type="button" class="btn-ghost" style="margin-top:14px;" onclick="document.getElementById('linkModal').classList.remove('open')">Fechar</button>
+  </div>
+</div>
+
+<script>
+  // Edit modal: set form action + prefill
+  function openEdit(id, nome, qty) {
+    var f = document.getElementById('editForm');
+    f.action = '/artigo/' + id + '/editar';
+    document.getElementById('editNome').value = nome;
+    document.getElementById('editQty').value = qty;
+    // close any open per-item menu
+    document.querySelectorAll('.item .menu-dropdown.open').forEach(function(m){m.classList.remove('open')});
+    document.getElementById('editModal').classList.add('open');
+    setTimeout(function(){ document.getElementById('editNome').focus() }, 50);
+  }
+
+  // Share-with-user form: submit via fetch so the error/success
+  // appears inline (404 for non-existent user, etc).
+  (function() {
+    var sf = document.getElementById('shareForm');
+    if (!sf) return;
+    var fb = document.getElementById('shareFeedback');
+    var input = document.getElementById('shareUsername');
+    function show(ok, msg) {
+      fb.textContent = msg;
+      fb.style.background = ok ? '#1c3a22' : '#3a1c1c';
+      fb.style.border = '1px solid ' + (ok ? '#2c5a3c' : '#5a2c2c');
+      fb.style.color = ok ? '#8f8' : '#f88';
+      fb.hidden = false;
+    }
+    sf.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var fd = new FormData(sf);
+      fetch(sf.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams(fd),
+      })
+        .then(function(r) { return r.json().then(function(d){return {status:r.status,d:d}}); })
+        .then(function(p) {
+          show(p.d.ok, p.d.msg);
+          if (p.d.ok) {
+            input.value = '';
+            // refresh after success so the share-list updates
+            setTimeout(function() { window.location.reload(); }, 800);
+          }
+        })
+        .catch(function() { show(false, 'Erro de rede.'); });
+    });
+  })();
+
+  // Share-by-link form: submit via fetch so the new URL appears
+  // in the modal immediately without a full reload.
+  (function() {
+    var lf = document.getElementById('linkForm');
+    if (!lf) return;
+    var result = document.getElementById('linkResult');
+    var urlInput = document.getElementById('linkResultUrl');
+    var copyBtn = document.getElementById('linkResultCopy');
+    lf.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var fd = new FormData(lf);
+      fetch(lf.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams(fd),
+      })
+        .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function(d) {
+          urlInput.value = window.location.origin + d.url;
+          copyBtn.textContent = 'Copiar';
+          result.hidden = false;
+          urlInput.focus();
+          urlInput.select();
+        })
+        .catch(function(err) { alert('Erro ao criar link: ' + err.message); });
+    });
+  })();
+
+  // Duplicate-detection: as the user types, look for an existing
+  // artigo with the same name in the active list. Show a banner.
+  (function() {
+    var input = document.getElementById('addInput');
+    var banner = document.getElementById('matchBanner');
+    var text = document.getElementById('matchText');
+    var togF = document.getElementById('matchToggleForm');
+    var destinoInput = document.getElementById('matchDestino');
+    var moveBtn = document.getElementById('matchMoveBtn');
+    var debounce = null;
+    function hide() { banner.hidden = true; }
+    input.addEventListener('input', function() {
+      var q = input.value.trim();
+      clearTimeout(debounce);
+      if (q.length < 2) { hide(); return; }
+      debounce = setTimeout(function() {
+        fetch('/artigos/match?q=' + encodeURIComponent(q))
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(d) {
+            if (!d || !d.found) { hide(); return; }
+            var loc = d.na_despensa ? 'na despensa' : 'a comprar';
+            text.textContent = '«' + d.nome + '» já existe ' + loc + '.';
+            togF.action = '/artigo/' + d.id + '/toggle';
+            // If item is in despensa, move it to "a comprar"; if it's
+            // already on the shopping list, move it to despensa.
+            destinoInput.value = d.na_despensa ? 'comprar' : 'despensa';
+            moveBtn.textContent = d.na_despensa ? 'Mover para a comprar' : 'Mover para a despensa';
+            banner.hidden = false;
+            // Flash + scroll the existing item into view.
+            var li = document.querySelector('li.item[data-artigo-id="' + d.id + '"]');
+            if (li) {
+              li.classList.remove('flash');
+              // force reflow so the animation restarts
+              void li.offsetWidth;
+              li.classList.add('flash');
+              li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          })
+          .catch(function() { hide(); });
+      }, 200);
+    });
+    input.addEventListener('blur', function() { setTimeout(hide, 200); });
+  })();
+
+  // Search-mode toggle on add bar.
+  (function() {
+    var form = document.getElementById('addForm');
+    var input = document.getElementById('addInput');
+    var btn = document.getElementById('addBtn');
+    var togBtn = document.getElementById('searchToggle');
+    var sug = document.getElementById('addSuggestions');
+    var searchMode = false;
+    var debounce = null;
+
+    togBtn.addEventListener('click', function() {
+      searchMode = !searchMode;
+      if (searchMode) {
+        input.placeholder = 'Pesquisar artigos…';
+        btn.style.display = 'none';
+        togBtn.classList.add('active');
+        input.focus();
+      } else {
+        input.placeholder = 'Novo artigo...';
+        btn.style.display = '';
+        togBtn.classList.remove('active');
+        sug.hidden = true;
+        sug.innerHTML = '';
+      }
+    });
+
+    input.addEventListener('input', function() {
+      if (!searchMode) return;
+      var q = input.value.trim();
+      clearTimeout(debounce);
+      if (q.length < 2) { sug.hidden = true; sug.innerHTML = ''; return; }
+      debounce = setTimeout(function() {
+        fetch('/artigos/search?q=' + encodeURIComponent(q))
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            sug.innerHTML = '';
+            (d.suggestions || []).forEach(function(name) {
+              var li = document.createElement('li');
+              li.textContent = name;
+              li.addEventListener('click', function() {
+                input.value = name;
+                sug.hidden = true;
+                searchMode = false;
+                input.placeholder = 'Novo artigo...';
+                btn.style.display = '';
+                togBtn.classList.remove('active');
+                input.focus();
+              });
+              sug.appendChild(li);
+            });
+            sug.hidden = sug.children.length === 0;
+            if (!sug.hidden) {
+              // Position above the input using viewport coords.
+              var r = input.getBoundingClientRect();
+              sug.style.position = 'fixed';
+              sug.style.left = r.left + 'px';
+              sug.style.width = r.width + 'px';
+              sug.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+              sug.style.top = 'auto';
+              sug.style.zIndex = 700;
+            }
+          })
+          .catch(function() {});
+      }, 200);
+    });
+
+    // Add an item without a full page reload — swap only #listsRegion (counts
+    // + items), clear the field and refocus for fast repeated adds.
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (searchMode) { return; }
+      var name = (input.value || '').trim();
+      if (!name) { return; }
+      fetch(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)) })
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          var fresh = new DOMParser().parseFromString(html, 'text/html').getElementById('listsRegion');
+          var region = document.getElementById('listsRegion');
+          if (!fresh || !region) { window.location.reload(); return; }
+          region.innerHTML = fresh.innerHTML;
+          input.value = '';
+          var mb = document.getElementById('matchBanner'); if (mb) { mb.hidden = true; }
+          input.focus();
+        })
+        .catch(function() { window.location.reload(); });
+    });
+  })();
+
+  // Move an item between "A comprar" and "Despensa" without a full page
+  // reload. The toggle POST 303-redirects to /home; we follow it, then swap
+  // only the .container HTML in place — no navigation, no flash, no scroll jump.
+  (function() {
+    var region = document.getElementById('listsRegion');
+    if (!region) return;
+    var busy = false;
+    document.addEventListener('submit', function(e) {
+      var form = e.target;
+      if (!form.matches || !form.matches('form[action^="/artigo/"][action$="/toggle"]')) return;
+      e.preventDefault();
+      if (busy) return;
+      busy = true;
+      fetch(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)) })
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          var fresh = new DOMParser().parseFromString(html, 'text/html').getElementById('listsRegion');
+          if (fresh) { region.innerHTML = fresh.innerHTML; }
+          busy = false;
+        })
+        .catch(function() { window.location.reload(); });
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}

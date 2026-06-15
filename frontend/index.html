@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/web-app-manifest-192x192.png" />
+    <link rel="icon" type="image/png" href="/logo3.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111111" />
+    <title>ListaIsto</title>
+    <script>
+      // Apply theme before first paint (no flash). 'auto' follows the OS.
+      (function () {
+        try {
+          var m = localStorage.getItem('theme') || 'auto'
+          var light = m === 'light' || (m === 'auto' && matchMedia('(prefers-color-scheme: light)').matches)
+          if (light) document.documentElement.setAttribute('data-theme', 'light')
+        } catch (e) { /* ignore */ }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

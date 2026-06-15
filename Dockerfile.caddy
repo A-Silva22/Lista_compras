@@ -1,0 +1,12 @@
+# Build the React SPA, then bake it into a Caddy image that serves the static
+# files and reverse-proxies /api/* to the Rust backend.
+FROM node:22-slim AS build
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+FROM caddy:latest
+COPY --from=build /app/dist /srv
+COPY Caddyfile /etc/caddy/Caddyfile

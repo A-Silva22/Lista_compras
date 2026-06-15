@@ -1,0 +1,31 @@
+[package]
+name = "lista_compras_rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.7", features = ["macros"] }
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "trace", "set-header"] }
+tower-sessions = "0.13"
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "mysql", "chrono", "macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_urlencoded = "0.7"
+askama = "0.12"
+askama_axum = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+thiserror = "2"
+pbkdf2 = "0.12"
+sha2 = "0.10"
+hmac = "0.12"
+base64 = "0.22"
+argon2 = "0.5"
+password-hash = "0.5"
+lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1-rustls-tls", "builder"] }
+url = "2"
+rand = "0.8"

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Adicionar email — ListaIsto{% endblock %}
+{% block content %}
+<div class="auth-shell">
+<div class="auth-card">
+  <img src="/static/logo3.png" alt="ListaIsto" class="auth-brand-logo">
+  <h1>Olá, {{ username }}</h1>
+  <p class="subtitle">Para podermos enviar-te o link de recuperação de palavra-passe, precisamos do teu email.</p>
+  {% if !erro.is_empty() %}<div class="erro">{{ erro }}</div>{% endif %}
+  <form method="POST" class="column">
+    <input type="email" name="email" placeholder="o-teu@email.com" required autocomplete="email">
+    <button type="submit" class="btn-primary">Guardar</button>
+  </form>
+  <p class="link"><a href="/sair/">Sair</a></p>
+</div>
+</div>
+{% endblock %}

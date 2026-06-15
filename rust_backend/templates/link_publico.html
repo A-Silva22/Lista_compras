@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}{{ lista_nome }} — partilhada{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="list-bar">
+    <span class="active-list-name" style="flex:1 1 auto;justify-content:flex-start;min-width:0;">
+      <img src="/static/logo3.png" alt="ListaIsto" style="height:1.8em;">
+      {{ lista_nome }}
+      <span class="badge">PARTILHADA</span>
+    </span>
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <span class="info-wrap">
+        <button type="button" class="info-icon" aria-label="Informação da lista partilhada"
+                onclick="this.closest('.info-wrap').classList.toggle('open')">i</button>
+        <div class="info-popover">
+          Expira em <strong style="color:#ccc;">{{ expira_em_str }}</strong> · permissões:
+          <span style="color:#ccc;">
+            {% if pode_toggle %}marcar comprado · {% endif %}
+            {% if pode_adicionar %}adicionar · {% endif %}
+            {% if pode_editar %}editar · {% endif %}
+            {% if pode_apagar %}apagar · {% endif %}
+            {% if !pode_toggle && !pode_adicionar && !pode_editar && !pode_apagar %}só leitura{% endif %}
+          </span>
+        </div>
+      </span>
+      {% if !already_logged_in %}
+      <form method="POST" action="/link/{{ token }}/guardar" style="margin:0;">
+        <button type="submit" name="destino" value="entrar" class="login-btn">Entrar</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div id="listsRegion">
+  <details open class="section-collapsible">
+    <summary class="section-title" style="cursor:pointer;list-style:none;">
+      <span class="caret">▾</span> Artigos a comprar <span class="count">{{ a_comprar.len() }}</span>
+    </summary>
+  {% if a_comprar.is_empty() %}
+    <p class="empty-msg">Nenhum artigo para comprar.</p>
+  {% else %}
+    <ul class="item-list">
+      {% for art in a_comprar %}
+      <li class="item" data-artigo-id="{{ art.id }}">
+        {% if pode_toggle %}
+        <form method="POST" action="/link/{{ token }}/{{ art.id }}/toggle" style="flex:1;min-width:0;display:contents;">
+          <input type="hidden" name="destino" value="despensa">
+          <button type="submit" class="item-name">{{ art.nome }}</button>
+        </form>
+        {% else %}
+        <span class="item-name" style="cursor:default;">{{ art.nome }}</span>
+        {% endif %}
+        <span class="qty">{{ art.quantidade }}</span>
+        {% if pode_apagar %}
+        <form method="POST" action="/link/{{ token }}/{{ art.id }}/apagar" onsubmit="return confirm('Apagar «{{ art.nome }}»?');">
+          <button type="submit" class="icon-btn danger" title="Apagar">✕</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  </details>
+
+  <hr class="divider">
+
+  <details open class="section-collapsible">
+    <summary class="section-title" style="cursor:pointer;list-style:none;">
+      <span class="caret">▾</span> Despensa <span class="count">{{ despensa.len() }}</span>
+    </summary>
+  {% if despensa.is_empty() %}
+    <p class="empty-msg">Despensa vazia.</p>
+  {% else %}
+    <ul class="item-list">
+      {% for art in despensa %}
+      <li class="item" data-artigo-id="{{ art.id }}">
+        {% if pode_toggle %}
+        <form method="POST" action="/link/{{ token }}/{{ art.id }}/toggle" style="flex:1;min-width:0;display:contents;">
+          <input type="hidden" name="destino" value="comprar">
+          <button type="submit" class="item-name">{{ art.nome }}</button>
+        </form>
+        {% else %}
+        <span class="item-name" style="cursor:default;">{{ art.nome }}</span>
+        {% endif %}
+        <span class="qty">{{ art.quantidade }}</span>
+        {% if pode_apagar %}
+        <form method="POST" action="/link/{{ token }}/{{ art.id }}/apagar" onsubmit="return confirm('Apagar «{{ art.nome }}»?');">
+          <button type="submit" class="icon-btn danger" title="Apagar">✕</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  </details>
+  </div>
+</div>
+
+{% if pode_adicionar %}
+<!-- Match banner -->
+<div id="matchBanner" hidden style="position:fixed;bottom:74px;left:0;right:0;z-index:480;padding:0 12px;">
+  <div style="max-width:600px;margin:0 auto;background:#1a1a1a;border:1px solid #333;border-left:3px solid #888;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:.9rem;">
+    <span id="matchText" style="flex:1;color:#ccc;"></span>
+    <form id="matchToggleForm" method="POST" action="" style="margin:0;display:none;">
+      <input type="hidden" name="destino" id="matchDestino" value="">
+      <button type="submit" id="matchMoveBtn" style="background:#e0e0e0;color:#111;border:0;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;"></button>
+    </form>
+  </div>
+</div>
+
+<div class="add-bar">
+  <form class="add-form" id="addForm" method="POST" action="/link/{{ token }}/adicionar" style="display:flex;gap:8px;align-items:center;width:100%;">
+    <input type="text" name="nome" id="addInput" placeholder="Novo artigo..." required autocomplete="off" autofocus style="flex:1 1 auto;min-width:0;width:auto;">
+    <input type="hidden" name="quantidade" value="1">
+    <button type="submit" class="btn-submit" style="flex:0 0 auto;">+</button>
+  </form>
+</div>
+
+<script>
+  (function() {
+    var input = document.getElementById('addInput');
+    var banner = document.getElementById('matchBanner');
+    var text = document.getElementById('matchText');
+    var togF = document.getElementById('matchToggleForm');
+    var destinoInput = document.getElementById('matchDestino');
+    var moveBtn = document.getElementById('matchMoveBtn');
+    var token = '{{ token }}';
+    var debounce = null;
+    function hide() { banner.hidden = true; }
+    input.addEventListener('input', function() {
+      var q = input.value.trim();
+      clearTimeout(debounce);
+      if (q.length < 2) { hide(); return; }
+      debounce = setTimeout(function() {
+        fetch('/link/' + encodeURIComponent(token) + '/match?q=' + encodeURIComponent(q))
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(d) {
+            if (!d || !d.found) { hide(); return; }
+            var loc = d.na_despensa ? 'na despensa' : 'a comprar';
+            text.textContent = '«' + d.nome + '» já existe ' + loc + '.';
+            if (d.pode_toggle) {
+              togF.action = '/link/' + encodeURIComponent(token) + '/' + d.id + '/toggle';
+              destinoInput.value = d.na_despensa ? 'comprar' : 'despensa';
+              moveBtn.textContent = d.na_despensa ? 'Mover para a comprar' : 'Mover para a despensa';
+              togF.style.display = '';
+            } else {
+              togF.style.display = 'none';
+            }
+            banner.hidden = false;
+            // Flash + scroll the existing item.
+            var li = document.querySelector('li.item[data-artigo-id="' + d.id + '"]');
+            if (li) {
+              li.classList.remove('flash');
+              void li.offsetWidth;
+              li.classList.add('flash');
+              li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          })
+          .catch(function() { hide(); });
+      }, 200);
+    });
+    input.addEventListener('blur', function() { setTimeout(hide, 200); });
+  })();
+</script>
+{% endif %}
+
+<script>
+  // Move an item between sections without a full reload — the toggle POST
+  // 303-redirects back to this link page; we follow it and swap only the
+  // #listsRegion HTML, leaving the header/logo untouched (no flash).
+  (function() {
+    var region = document.getElementById('listsRegion');
+    if (!region) return;
+    var busy = false;
+    document.addEventListener('submit', function(e) {
+      var form = e.target;
+      if (!form.matches || !form.matches('form[action^="/link/"][action$="/toggle"]')) return;
+      e.preventDefault();
+      if (busy) return;
+      busy = true;
+      fetch(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)) })
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          var fresh = new DOMParser().parseFromString(html, 'text/html').getElementById('listsRegion');
+          if (fresh) { region.innerHTML = fresh.innerHTML; }
+          busy = false;
+        })
+        .catch(function() { window.location.reload(); });
+    });
+  })();
+
+  // Add an item without a full reload — swap only #listsRegion, clear + refocus.
+  (function() {
+    var form = document.getElementById('addForm');
+    var region = document.getElementById('listsRegion');
+    if (!form || !region) return;
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var input = document.getElementById('addInput');
+      if (!input || !input.value.trim()) return;
+      fetch(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)) })
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          var fresh = new DOMParser().parseFromString(html, 'text/html').getElementById('listsRegion');
+          if (!fresh) { window.location.reload(); return; }
+          region.innerHTML = fresh.innerHTML;
+          input.value = '';
+          var mb = document.getElementById('matchBanner'); if (mb) { mb.hidden = true; }
+          input.focus();
+        })
+        .catch(function() { window.location.reload(); });
+    });
+  })();
+</script>
+{% endblock %}

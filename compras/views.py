@@ -9,7 +9,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.conf import settings as django_settings
 from django.template.loader import render_to_string
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode, url_has_allowed_host_and_scheme
 from django.utils.encoding import force_bytes, force_str
 from django.db.models import Q, Count
 from django.utils import timezone
@@ -50,6 +50,17 @@ def _pode_aceder_lista(user, lista):
     return lista.partilhas.filter(utilizador=user).exists()
 
 
+def _safe_next(request, next_url):
+    """Return next_url only if it points to the same host (open-redirect guard)."""
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return None
+
+
 # ── Auth views ───────────────────────────────────────────────────
 
 def _associar_link_lista(request, user):
@@ -77,23 +88,34 @@ def registar(request):
     if request.method == 'POST':
         next_url = request.POST.get('next', '')
         username = request.POST.get('username', '').strip()
-        password_hash = request.POST.get('password_hash', '').strip()
-        if not username or not password_hash:
+        password = request.POST.get('password', '').strip()
+        legacy_hash = request.POST.get('password_hash', '').strip()
+        secret = password or legacy_hash
+        if not username or not secret:
             erro = 'Preencha todos os campos.'
         elif User.objects.filter(username=username).exists():
             erro = 'Este nome de utilizador já existe.'
         else:
             user = User(username=username)
-            user.password = make_password(password_hash)
+            if password:
+                user.set_password(password)
+            else:
+                user.password = make_password(legacy_hash)
             user.save()
             Lista.objects.create(nome='Casa', dono=user)
             backend = HashedPasswordBackend()
-            user = backend.authenticate(request, username=username, password_hash=password_hash)
+            user = backend.authenticate(
+                request,
+                username=username,
+                password=password or None,
+                password_hash=legacy_hash or None,
+            )
             if user:
                 login(request, user, backend='compras.backends.HashedPasswordBackend')
                 request.session.pop('link_token', None)
-            if next_url:
-                return redirect(next_url)
+            safe = _safe_next(request, next_url)
+            if safe:
+                return redirect(safe)
             return redirect('index')
     return render(request, 'compras/registar.html', {'erro': erro, 'next': next_url})
 
@@ -106,9 +128,15 @@ def entrar(request):
     if request.method == 'POST':
         next_url = request.POST.get('next', '')
         username = request.POST.get('username', '').strip()
-        password_hash = request.POST.get('password_hash', '').strip()
+        password = request.POST.get('password', '').strip()
+        legacy_hash = request.POST.get('password_hash', '').strip()
         backend = HashedPasswordBackend()
-        user = backend.authenticate(request, username=username, password_hash=password_hash)
+        user = backend.authenticate(
+            request,
+            username=username,
+            password=password or None,
+            password_hash=legacy_hash or None,
+        )
         if user:
             login(request, user, backend='compras.backends.HashedPasswordBackend')
             _associar_link_lista(request, user)
@@ -117,8 +145,9 @@ def entrar(request):
                 return redirect('adicionar_email')
             if request.session.get('pending_link_token'):
                 return redirect('index')
-            if next_url:
-                return redirect(next_url)
+            safe = _safe_next(request, next_url)
+            if safe:
+                return redirect(safe)
             return redirect('index')
         else:
             erro = 'Nome de utilizador ou palavra-passe incorretos.'
@@ -149,8 +178,9 @@ def adicionar_email(request):
             next_url = request.session.pop('next_after_email', '')
             if request.session.get('pending_link_token'):
                 return redirect('index')
-            if next_url:
-                return redirect(next_url)
+            safe = _safe_next(request, next_url)
+            if safe:
+                return redirect(safe)
             return redirect('index')
     return render(request, 'compras/adicionar_email.html', {'erro': erro})
 
@@ -208,11 +238,15 @@ def reset_password(request, uidb64, token):
             'invalido': True,
         })
     if request.method == 'POST':
-        password_hash = request.POST.get('password_hash', '').strip()
-        if not password_hash:
+        password = request.POST.get('password', '').strip()
+        legacy_hash = request.POST.get('password_hash', '').strip()
+        if not password and not legacy_hash:
             erro = 'Introduza uma nova palavra-passe.'
         else:
-            user.password = make_password(password_hash)
+            if password:
+                user.set_password(password)
+            else:
+                user.password = make_password(legacy_hash)
             user.save()
             sucesso = True
     return render(request, 'compras/reset_password.html', {

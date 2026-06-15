@@ -1,4 +1,10 @@
 venv.lista/
+frontend/node_modules/
+frontend/dist/
+rust_backend/target/
+media/
+images_site_ListaIsto/
+tests_e2e/
 __pycache__/
 *.py[cod]
 *.pyo

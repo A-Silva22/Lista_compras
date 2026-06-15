@@ -36,7 +36,18 @@ Thumbs.db
 # Docker
 docker-compose.override.yml
 
-# Accidental binary dumps
-django
-os
-sys
+# Accidental binary dumps (anchored to repo root so they don't shadow legit dirs)
+/django
+/os
+/sys
+
+# Database backups — contain real user data, never commit
+backups/
+
+# Internal planning notes / scratch — not for GitHub
+notas.txt
+metodo_pagemento.txt
+metodo_pagemento.txt\ 
+
+# Pytest
+.pytest_cache/

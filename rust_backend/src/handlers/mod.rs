@@ -1,0 +1,10 @@
+pub mod adicionar_email;
+pub mod api;
+pub mod api_listas;
+pub mod entrar;
+pub mod index;
+pub mod links_publicos;
+pub mod listas;
+pub mod recuperar;
+pub mod registar;
+pub mod sair;

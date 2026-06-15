@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Entrar — ListaIsto{% endblock %}
+{% block content %}
+<div class="auth-shell">
+<div class="auth-card">
+  <img src="/static/logo3.png" alt="ListaIsto" class="auth-brand-logo">
+  <h1>Entrar</h1>
+  <p class="subtitle">ListaIsto.</p>
+  {% if !erro.is_empty() %}<div class="erro">{{ erro }}</div>{% endif %}
+  <form method="POST" class="column">
+    {% if !next.is_empty() %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <input type="text" name="username" placeholder="Nome de utilizador" required autocomplete="username">
+    <input type="password" name="password" placeholder="Palavra-passe" required autocomplete="current-password">
+    <button type="submit" class="btn-primary">Entrar</button>
+  </form>
+  <p class="link"><a href="/recuperar-password/">Esqueceu a palavra-passe?</a></p>
+  <p class="link">Não tem conta? <a href="/registar/{% if !next.is_empty() %}?next={{ next }}{% endif %}">Registar</a></p>
+</div>
+</div>
+{% endblock %}
