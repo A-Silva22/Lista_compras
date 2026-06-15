@@ -1,5 +1,5 @@
 use lettre::{
-    message::Mailbox,
+    message::{header::ContentType, Mailbox},
     transport::smtp::{authentication::Credentials, AsyncSmtpTransport, AsyncSmtpTransportBuilder},
     AsyncTransport, Message, Tokio1Executor,
 };
@@ -61,6 +61,10 @@ impl Mailer {
             .from(self.from.clone())
             .to(to_box)
             .subject(subject)
+            // Declare UTF-8 so accents (á, ç) and the em-dash (—) render in
+            // every client, not just Gmail. lettre picks a safe transfer
+            // encoding (quoted-printable/base64) for the non-ASCII body.
+            .header(ContentType::TEXT_PLAIN)
             .body(body.to_owned())?;
 
         match &self.transport {
