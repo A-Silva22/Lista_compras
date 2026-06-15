@@ -5,7 +5,7 @@ import type { Item, ListDetail, ListSummary } from '../api'
 import { useAuth } from '../auth'
 import { getMode, setMode } from '../theme'
 import type { ThemeMode } from '../theme'
-import { Modal, PeopleIcon, LinkIcon, SearchIcon, SunIcon, MoonIcon, AutoIcon } from '../components/Modal'
+import { Modal, PeopleIcon, PersonIcon, LinkIcon, SearchIcon, SunIcon, MoonIcon, AutoIcon } from '../components/Modal'
 
 // Copy text to clipboard with a non-secure-origin fallback (LAN IP over HTTP),
 // then briefly confirm on the button.
@@ -199,7 +199,7 @@ function UserMenu(p: {
   return (
     <div className="user-menu-wrapper">
       <button className="user-btn" onClick={() => p.setOpen(!p.open)} aria-label="Conta" title={p.me}>
-        <PeopleIcon /> ▾
+        <PersonIcon /> ▾
       </button>
       <div className={'user-dropdown' + (p.open ? ' open' : '')} onClick={e => e.stopPropagation()}>
         <button onClick={p.onProfile}>Perfil</button>
