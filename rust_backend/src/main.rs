@@ -69,8 +69,15 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("schema ensured: user_email + password_reset (emails migrated from auth_user)");
 
     let session_store = MemoryStore::default();
+    // Cookie Secure flag is env-driven: defaults to true (safe for the HTTPS
+    // production site); set COOKIE_SECURE=false for local HTTP development.
+    let cookie_secure = std::env::var("COOKIE_SECURE")
+        .ok()
+        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(true);
+    tracing::info!("session cookie secure={}", cookie_secure);
     let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false) // dev: HTTP. flip to true in prod.
+        .with_secure(cookie_secure)
         .with_http_only(true)
         .with_same_site(SameSite::Lax)
         .with_name("rust_sid")
