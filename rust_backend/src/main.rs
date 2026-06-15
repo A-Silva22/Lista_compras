@@ -63,6 +63,11 @@ async fn main() -> anyhow::Result<()> {
         mailer: Arc::new(Mailer::from_env()?),
     };
 
+    // App-owned schema: create user_email + password_reset and migrate any
+    // existing emails out of Django's auth_user. Runs every boot (idempotent).
+    state.db.ensure_schema().await?;
+    tracing::info!("schema ensured: user_email + password_reset (emails migrated from auth_user)");
+
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false) // dev: HTTP. flip to true in prod.

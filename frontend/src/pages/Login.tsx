@@ -21,11 +21,9 @@ export default function Login() {
     try {
       const me = await api.login(username, password)
       setMe(me)
-      if (me.needs_email) {
-        nav('/adicionar-email', { replace: true })
-      } else {
-        nav(next ?? '/', { replace: true })
-      }
+      // Always land on the email step: it asks for the email when missing,
+      // otherwise just confirms password-recovery-by-email is available.
+      nav('/adicionar-email', { replace: true, state: { next } })
     } catch (err) {
       setErro((err as Error).message)
     } finally {

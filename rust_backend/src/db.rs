@@ -61,10 +61,121 @@ impl Db {
         Self { pool }
     }
 
+    /// Own the full schema. `CREATE TABLE IF NOT EXISTS` is a no-op on the
+    /// existing production database (tables already present), and makes the
+    /// Rust backend fully self-sufficient on a fresh database — no Django
+    /// migrations needed. Statement order respects foreign keys
+    /// (auth_user -> compras_lista -> children). Idempotent; runs every boot.
+    pub async fn ensure_schema(&self) -> sqlx::Result<()> {
+        const DDL: &[&str] = &[
+            "CREATE TABLE IF NOT EXISTS auth_user (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                password varchar(128) NOT NULL,
+                last_login datetime(6) DEFAULT NULL,
+                is_superuser tinyint(1) NOT NULL,
+                username varchar(150) NOT NULL,
+                first_name varchar(150) NOT NULL,
+                last_name varchar(150) NOT NULL,
+                email varchar(254) NOT NULL,
+                is_staff tinyint(1) NOT NULL,
+                is_active tinyint(1) NOT NULL,
+                date_joined datetime(6) NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY username (username)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            "CREATE TABLE IF NOT EXISTS compras_lista (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                nome varchar(200) NOT NULL,
+                criado_em datetime(6) NOT NULL,
+                dono_id int(11) NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY compras_lista_nome_dono_id_2a74b4cc_uniq (nome, dono_id),
+                KEY compras_lista_dono_id_7c4bac72_fk_auth_user_id (dono_id),
+                CONSTRAINT compras_lista_dono_id_7c4bac72_fk_auth_user_id
+                    FOREIGN KEY (dono_id) REFERENCES auth_user (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            "CREATE TABLE IF NOT EXISTS compras_artigo (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                nome varchar(500) NOT NULL,
+                quantidade varchar(50) NOT NULL,
+                comprar tinyint(1) NOT NULL,
+                criado_em datetime(6) NOT NULL,
+                movido_em datetime(6) NOT NULL,
+                lista_id bigint(20) DEFAULT NULL,
+                PRIMARY KEY (id),
+                KEY compras_artigo_lista_id_09518259_fk_compras_lista_id (lista_id),
+                CONSTRAINT compras_artigo_lista_id_09518259_fk_compras_lista_id
+                    FOREIGN KEY (lista_id) REFERENCES compras_lista (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            "CREATE TABLE IF NOT EXISTS compras_listapartilha (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                criado_em datetime(6) NOT NULL,
+                lista_id bigint(20) NOT NULL,
+                utilizador_id int(11) NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY compras_listapartilha_lista_id_utilizador_id_74015b18_uniq (lista_id, utilizador_id),
+                KEY compras_listapartilha_utilizador_id_a95f65b8_fk_auth_user_id (utilizador_id),
+                CONSTRAINT compras_listapartilha_lista_id_cdfddbd7_fk_compras_lista_id
+                    FOREIGN KEY (lista_id) REFERENCES compras_lista (id),
+                CONSTRAINT compras_listapartilha_utilizador_id_a95f65b8_fk_auth_user_id
+                    FOREIGN KEY (utilizador_id) REFERENCES auth_user (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            "CREATE TABLE IF NOT EXISTS compras_linkpartilha (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                token char(32) NOT NULL,
+                criado_em datetime(6) NOT NULL,
+                expira_em datetime(6) NOT NULL,
+                pode_adicionar tinyint(1) NOT NULL,
+                pode_editar tinyint(1) NOT NULL,
+                pode_apagar tinyint(1) NOT NULL,
+                pode_toggle tinyint(1) NOT NULL,
+                lista_id bigint(20) NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY token (token),
+                KEY compras_linkpartilha_lista_id_bf254ddf_fk_compras_lista_id (lista_id),
+                CONSTRAINT compras_linkpartilha_lista_id_bf254ddf_fk_compras_lista_id
+                    FOREIGN KEY (lista_id) REFERENCES compras_lista (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            "CREATE TABLE IF NOT EXISTS user_email (
+                user_id int(11) NOT NULL PRIMARY KEY,
+                email varchar(254) NOT NULL,
+                criado_em datetime(6) NOT NULL,
+                KEY idx_user_email_email (email)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            "CREATE TABLE IF NOT EXISTS password_reset (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                user_id int(11) NOT NULL,
+                token varchar(64) NOT NULL,
+                expira_em datetime(6) NOT NULL,
+                usado tinyint(1) NOT NULL DEFAULT 0,
+                criado_em datetime(6) NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_password_reset_token (token)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+        ];
+        for stmt in DDL {
+            sqlx::query(stmt).execute(&self.pool).await?;
+        }
+
+        // One-time migration of pre-existing Django emails into user_email.
+        // INSERT IGNORE is idempotent and never clobbers a newer app-set email.
+        sqlx::query(
+            "INSERT IGNORE INTO user_email (user_id, email, criado_em)
+             SELECT id, email, NOW() FROM auth_user WHERE email <> ''",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     pub async fn user_by_username(&self, username: &str) -> sqlx::Result<Option<AuthUser>> {
         sqlx::query_as::<_, AuthUser>(
-            "SELECT id, username, password, email, last_login, is_active
-             FROM auth_user WHERE username = ? LIMIT 1",
+            "SELECT u.id, u.username, u.password, COALESCE(e.email, '') AS email,
+                    u.last_login, u.is_active
+             FROM auth_user u
+             LEFT JOIN user_email e ON e.user_id = u.id
+             WHERE u.username = ? LIMIT 1",
         )
         .bind(username)
         .fetch_optional(&self.pool)
@@ -73,8 +184,11 @@ impl Db {
 
     pub async fn user_by_email(&self, email: &str) -> sqlx::Result<Option<AuthUser>> {
         sqlx::query_as::<_, AuthUser>(
-            "SELECT id, username, password, email, last_login, is_active
-             FROM auth_user WHERE email = ? LIMIT 1",
+            "SELECT u.id, u.username, u.password, e.email AS email,
+                    u.last_login, u.is_active
+             FROM auth_user u
+             JOIN user_email e ON e.user_id = u.id
+             WHERE e.email = ? LIMIT 1",
         )
         .bind(email)
         .fetch_optional(&self.pool)
@@ -83,8 +197,11 @@ impl Db {
 
     pub async fn user_by_id(&self, id: i32) -> sqlx::Result<Option<AuthUser>> {
         sqlx::query_as::<_, AuthUser>(
-            "SELECT id, username, password, email, last_login, is_active
-             FROM auth_user WHERE id = ? LIMIT 1",
+            "SELECT u.id, u.username, u.password, COALESCE(e.email, '') AS email,
+                    u.last_login, u.is_active
+             FROM auth_user u
+             LEFT JOIN user_email e ON e.user_id = u.id
+             WHERE u.id = ? LIMIT 1",
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -103,7 +220,7 @@ impl Db {
 
     pub async fn email_taken_by_other(&self, email: &str, exclude_id: i32) -> sqlx::Result<bool> {
         let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM auth_user WHERE email = ? AND id <> ?",
+            "SELECT COUNT(*) FROM user_email WHERE email = ? AND user_id <> ?",
         )
         .bind(email)
         .bind(exclude_id)
@@ -146,7 +263,7 @@ impl Db {
         expira_em: DateTime<Utc>,
     ) -> sqlx::Result<()> {
         sqlx::query(
-            "INSERT INTO compras_passwordreset (user_id, token, expira_em, usado, criado_em)
+            "INSERT INTO password_reset (user_id, token, expira_em, usado, criado_em)
              VALUES (?, ?, ?, 0, ?)",
         )
         .bind(user_id)
@@ -161,7 +278,7 @@ impl Db {
     /// Check a reset token without consuming it (valid = unused + not expired).
     pub async fn password_reset_valid(&self, token: &str) -> sqlx::Result<bool> {
         let row: Option<(i32,)> = sqlx::query_as(
-            "SELECT id FROM compras_passwordreset
+            "SELECT id FROM password_reset
              WHERE token = ? AND usado = 0 AND expira_em > ? LIMIT 1",
         )
         .bind(token)
@@ -175,7 +292,7 @@ impl Db {
     /// return the user id. Returns None if invalid/expired/already used.
     pub async fn consume_password_reset(&self, token: &str) -> sqlx::Result<Option<i32>> {
         let row: Option<(i32,)> = sqlx::query_as(
-            "SELECT user_id FROM compras_passwordreset
+            "SELECT user_id FROM password_reset
              WHERE token = ? AND usado = 0 AND expira_em > ?
              LIMIT 1",
         )
@@ -184,19 +301,25 @@ impl Db {
         .fetch_optional(&self.pool)
         .await?;
         let Some((user_id,)) = row else { return Ok(None) };
-        sqlx::query("UPDATE compras_passwordreset SET usado = 1 WHERE token = ?")
+        sqlx::query("UPDATE password_reset SET usado = 1 WHERE token = ?")
             .bind(token)
             .execute(&self.pool)
             .await?;
         Ok(Some(user_id))
     }
 
+    /// Upsert the user's email into the app-owned `user_email` table
+    /// (decoupled from Django's `auth_user.email`).
     pub async fn update_email(&self, user_id: i32, email: &str) -> sqlx::Result<()> {
-        sqlx::query("UPDATE auth_user SET email = ? WHERE id = ?")
-            .bind(email)
-            .bind(user_id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "INSERT INTO user_email (user_id, email, criado_em)
+             VALUES (?, ?, NOW())
+             ON DUPLICATE KEY UPDATE email = VALUES(email)",
+        )
+        .bind(user_id)
+        .bind(email)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
