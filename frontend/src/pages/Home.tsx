@@ -60,6 +60,27 @@ export default function Home() {
     })()
   }, [refreshLists])
 
+  // Live sync: while a list is open, poll every few seconds so edits made on
+  // another device or by a collaborator appear quickly (and two people don't
+  // fight over the same item). Paused while a modal/menu is open — so the UI
+  // isn't yanked from under the user — and while the tab is hidden.
+  useEffect(() => {
+    if (!detail) return
+    const id = detail.id
+    let cancelled = false
+    const busy = () =>
+      editing || shareOpen || linkOpen || createOpen || accountOpen || openItemMenu !== null
+    const tick = async () => {
+      if (cancelled || document.hidden || busy()) return
+      try {
+        const [d, r] = await Promise.all([api.listDetail(id), api.lists()])
+        if (!cancelled) { setDetail(d); setLists(r.lists) }
+      } catch { /* transient error — retry next tick */ }
+    }
+    const h = window.setInterval(tick, 4000)
+    return () => { cancelled = true; window.clearInterval(h) }
+  }, [detail?.id, editing, shareOpen, linkOpen, createOpen, accountOpen, openItemMenu])
+
   function closeMenus() { setHamOpen(false); setListMenu(false); setUserMenu(false); setOpenItemMenu(null) }
 
   // Close any open menu/dropdown when tapping outside it (mobile-style).
@@ -319,7 +340,10 @@ function AddBar(p: { lid: number; setDetail: (d: ListDetail) => void }) {
     if (searchMode) return
     const v = nome.trim(); if (!v) return
     p.setDetail(await api.addItem(p.lid, v))
-    setNome(''); setMatch(''); inputRef.current?.focus()
+    // preventScroll: on mobile the add bar is fixed at the bottom; refocusing
+    // it without this makes the browser scroll the page down into the dark
+    // padding zone. Keep the viewport where it is (at the top).
+    setNome(''); setMatch(''); inputRef.current?.focus({ preventScroll: true })
   }
 
   return (
