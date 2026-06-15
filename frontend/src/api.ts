@@ -96,6 +96,8 @@ export const api = {
     call<void>('/api/password/reset', { method: 'POST', body: body({ token, new_password }) }),
   changePassword: (old_password: string, new_password: string) =>
     call<void>('/api/password/change', { method: 'POST', body: body({ old_password, new_password }) }),
+  changeUsername: (username: string) =>
+    call<Me>('/api/username', { method: 'POST', body: body({ username }) }),
 
   // lists
   lists: () => call<ListsResponse>('/api/lists'),

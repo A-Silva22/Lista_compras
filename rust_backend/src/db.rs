@@ -229,6 +229,17 @@ impl Db {
         Ok(row.0 > 0)
     }
 
+    pub async fn username_taken_by_other(&self, username: &str, exclude_id: i32) -> sqlx::Result<bool> {
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM auth_user WHERE username = ? AND id <> ?",
+        )
+        .bind(username)
+        .bind(exclude_id)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row.0 > 0)
+    }
+
     pub async fn create_user(&self, username: &str, password_hash: &str) -> sqlx::Result<i32> {
         // Mirror Django auth_user defaults.
         let now = Utc::now();
@@ -249,6 +260,15 @@ impl Db {
     pub async fn update_password(&self, user_id: i32, password_hash: &str) -> sqlx::Result<()> {
         sqlx::query("UPDATE auth_user SET password = ? WHERE id = ?")
             .bind(password_hash)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_username(&self, user_id: i32, username: &str) -> sqlx::Result<()> {
+        sqlx::query("UPDATE auth_user SET username = ? WHERE id = ?")
+            .bind(username)
             .bind(user_id)
             .execute(&self.pool)
             .await?;

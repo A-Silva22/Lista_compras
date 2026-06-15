@@ -43,7 +43,9 @@ export default function Home() {
   const [editing, setEditing] = useState<Item | null>(null)
   const [openItemMenu, setOpenItemMenu] = useState<number | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
-  const [accountOpen, setAccountOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [recOpen, setRecOpen] = useState(false)
   const [flashId, setFlashId] = useState<number | null>(null)
   const flashTimer = useRef<number | undefined>(undefined)
 
@@ -81,7 +83,7 @@ export default function Home() {
     const id = detail.id
     let cancelled = false
     const busy = () =>
-      editing || shareOpen || linkOpen || createOpen || accountOpen || openItemMenu !== null
+      editing || shareOpen || linkOpen || createOpen || profileOpen || aboutOpen || recOpen || openItemMenu !== null
     const tick = async () => {
       if (cancelled || document.hidden || busy()) return
       try {
@@ -91,7 +93,14 @@ export default function Home() {
     }
     const h = window.setInterval(tick, 4000)
     return () => { cancelled = true; window.clearInterval(h) }
-  }, [detail?.id, editing, shareOpen, linkOpen, createOpen, accountOpen, openItemMenu])
+  }, [detail?.id, editing, shareOpen, linkOpen, createOpen, profileOpen, aboutOpen, recOpen, openItemMenu])
+
+  // One-time recovery notice: the first time a user with an email reaches Home,
+  // tell them they can recover their password by email. Per-device (localStorage),
+  // so it doesn't reappear on later logins.
+  useEffect(() => {
+    if (me?.email && me.id && !localStorage.getItem('rec_seen_' + me.id)) setRecOpen(true)
+  }, [me?.id, me?.email])
 
   function closeMenus() { setHamOpen(false); setListMenu(false); setUserMenu(false); setOpenItemMenu(null) }
 
@@ -127,6 +136,10 @@ export default function Home() {
   async function logout() {
     await api.logout(); setMe(null); nav('/entrar', { replace: true })
   }
+  function closeRec() {
+    if (me?.id) localStorage.setItem('rec_seen_' + me.id, '1')
+    setRecOpen(false)
+  }
   function chooseMode(m: ThemeMode) { setMode(m); setModeState(m) }
 
   if (loading) return <div className="centered">A carregar…</div>
@@ -142,7 +155,8 @@ export default function Home() {
           onShare={() => { setShareOpen(true); closeMenus() }}
           onLink={() => { setLinkOpen(true); closeMenus() }}
           onLogout={logout} onMode={chooseMode}
-          onAccount={() => { setAccountOpen(true); closeMenus() }}
+          onProfile={() => { setProfileOpen(true); closeMenus() }}
+          onAbout={() => { setAboutOpen(true); closeMenus() }}
         />
         {!detail ? (
           <p className="empty-msg">Crie uma lista para começar.</p>
@@ -163,7 +177,15 @@ export default function Home() {
         </>
       )}
       <NewListModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={doCreate} />
-      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <Modal open={recOpen} onClose={closeRec} title="Recuperação de palavra-passe">
+        <p className="about-text">
+          Tem o email <strong>{me?.email}</strong> associado à sua conta. Pode
+          recuperar a palavra-passe por email sempre que precisar.
+        </p>
+        <button className="btn-primary" onClick={closeRec}>OK</button>
+      </Modal>
     </div>
   )
 }
@@ -171,12 +193,16 @@ export default function Home() {
 // ── User dropdown: dark/light checkbox, account button, logout ──
 function UserMenu(p: {
   me: string; open: boolean; mode: ThemeMode
-  setOpen: (b: boolean) => void; onMode: (m: ThemeMode) => void; onLogout: () => void; onAccount: () => void
+  setOpen: (b: boolean) => void; onMode: (m: ThemeMode) => void
+  onLogout: () => void; onProfile: () => void; onAbout: () => void
 }) {
   return (
     <div className="user-menu-wrapper">
-      <button className="user-btn" onClick={() => p.setOpen(!p.open)}>{p.me} ▾</button>
+      <button className="user-btn" onClick={() => p.setOpen(!p.open)}>
+        <PeopleIcon /> <span className="user-btn-name">{p.me}</span> ▾
+      </button>
       <div className={'user-dropdown' + (p.open ? ' open' : '')} onClick={e => e.stopPropagation()}>
+        <button onClick={p.onProfile}>Perfil</button>
         <div className="menu-theme">
           <span>Tema</span>
           <div className="theme-modes">
@@ -185,24 +211,36 @@ function UserMenu(p: {
             <button type="button" className={p.mode === 'auto' ? 'on' : ''} title="Automático" aria-label="Automático" onClick={() => p.onMode('auto')}><AutoIcon /></button>
           </div>
         </div>
-        <button onClick={p.onAccount}>Mudar palavra-passe</button>
-        <div className="menu-section">
-          <span className="menu-label">Contacto</span>
-          <a className="menu-email" href="mailto:geral@listaisto.pt">geral@listaisto.pt</a>
-        </div>
+        <button onClick={p.onAbout}>Sobre</button>
         <button className="menu-logout" onClick={p.onLogout}>Sair</button>
       </div>
     </div>
   )
 }
 
-// ── Change-password popup ──
-function AccountModal(p: { open: boolean; onClose: () => void }) {
+// ── Profile popup: change username + password ──
+function ProfileModal(p: { open: boolean; onClose: () => void }) {
+  const { me, setMe } = useAuth()
+  const [username, setUsername] = useState('')
   const [oldPw, setOldPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [fb, setFb] = useState<{ ok: boolean; msg: string } | null>(null)
-  useEffect(() => { if (p.open) { setOldPw(''); setNewPw(''); setFb(null) } }, [p.open])
+  // Reset fields only when the modal OPENS — not when me.username changes,
+  // otherwise a successful rename (which updates me) would instantly wipe the
+  // success message.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (p.open) { setUsername(me?.username ?? ''); setOldPw(''); setNewPw(''); setFb(null) }
+  }, [p.open])
   if (!p.open) return null
+
+  const saveUsername = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      setMe(await api.changeUsername(username.trim()))
+      setFb({ ok: true, msg: 'Nome de utilizador atualizado.' })
+    } catch (err) { setFb({ ok: false, msg: (err as Error).message }) }
+  }
   const changePw = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -211,20 +249,58 @@ function AccountModal(p: { open: boolean; onClose: () => void }) {
     } catch (err) { setFb({ ok: false, msg: (err as Error).message }) }
   }
   return (
-    <Modal open={p.open} onClose={p.onClose} title="Mudar palavra-passe">
-      <form onSubmit={changePw} className="modal-form">
-        <label className="field">
-          <span>Palavra-passe atual</span>
-          <input type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} placeholder="••••••••" autoComplete="current-password" required />
-        </label>
-        <label className="field">
-          <span>Nova palavra-passe</span>
-          <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="••••••••" autoComplete="new-password" required />
-        </label>
-        {fb && <div className={fb.ok ? 'ok' : 'erro'}>{fb.msg}</div>}
-        <button type="submit" className="btn-primary">Guardar</button>
-      </form>
-      <button type="button" className="modal-close-link" onClick={p.onClose}>Cancelar</button>
+    <Modal open={p.open} onClose={p.onClose} title="Perfil">
+      {fb && <div className={fb.ok ? 'ok' : 'erro'} style={{ marginBottom: 14 }}>{fb.msg}</div>}
+      <div className="settings-section">
+        <h4>Nome de utilizador</h4>
+        <form onSubmit={saveUsername} className="modal-form">
+          <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+            placeholder="Nome de utilizador" autoComplete="username" required />
+          <button type="submit" className="btn-primary">Guardar nome</button>
+        </form>
+      </div>
+      <div className="settings-section">
+        <h4>Mudar palavra-passe</h4>
+        <form onSubmit={changePw} className="modal-form">
+          <input type="password" value={oldPw} onChange={e => setOldPw(e.target.value)}
+            placeholder="Palavra-passe atual" autoComplete="current-password" required />
+          <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+            placeholder="Nova palavra-passe" autoComplete="new-password" required />
+          <button type="submit" className="btn-primary">Guardar palavra-passe</button>
+        </form>
+      </div>
+    </Modal>
+  )
+}
+
+// ── About popup: contact email (copy) + cookie explanation ──
+function AboutModal(p: { open: boolean; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+  if (!p.open) return null
+  const email = 'geral@listaisto.pt'
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(email); setCopied(true); setTimeout(() => setCopied(false), 1500) }
+    catch { /* clipboard unavailable */ }
+  }
+  return (
+    <Modal open={p.open} onClose={p.onClose} title="Sobre o ListaIsto">
+      <div className="settings-section">
+        <h4>Contacto</h4>
+        <div className="contact-popup">
+          <div className="email-row">
+            <span>{email}</span>
+            <button type="button" className="icon-btn" onClick={copy}>{copied ? 'Copiado ✓' : 'Copiar'}</button>
+          </div>
+        </div>
+      </div>
+      <div className="settings-section">
+        <h4>Cookies</h4>
+        <p className="about-text">
+          O ListaIsto usa apenas um cookie essencial para manter a sua sessão
+          iniciada. Não usamos cookies de publicidade nem de rastreio — sem este
+          cookie não seria possível manter-se autenticado.
+        </p>
+      </div>
     </Modal>
   )
 }
@@ -235,7 +311,8 @@ function Header(p: {
   hamOpen: boolean; listMenu: boolean; userMenu: boolean
   setHamOpen: (b: boolean) => void; setListMenu: (b: boolean) => void; setUserMenu: (b: boolean) => void
   onSelect: (id: number) => void; onCreate: () => void; onDelete: () => void
-  onShare: () => void; onLink: () => void; onLogout: () => void; onMode: (m: ThemeMode) => void; onAccount: () => void
+  onShare: () => void; onLink: () => void; onLogout: () => void; onMode: (m: ThemeMode) => void
+  onProfile: () => void; onAbout: () => void
 }) {
   return (
     <div className="list-bar">
@@ -274,7 +351,7 @@ function Header(p: {
 
       <UserMenu me={p.me} mode={p.mode} open={p.userMenu}
         setOpen={b => { p.setUserMenu(b); p.setHamOpen(false); p.setListMenu(false) }}
-        onMode={p.onMode} onLogout={p.onLogout} onAccount={p.onAccount} />
+        onMode={p.onMode} onLogout={p.onLogout} onProfile={p.onProfile} onAbout={p.onAbout} />
     </div>
   )
 }

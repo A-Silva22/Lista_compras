@@ -21,9 +21,8 @@ export default function Login() {
     try {
       const me = await api.login(username, password)
       setMe(me)
-      // Always land on the email step: it asks for the email when missing,
-      // otherwise just confirms password-recovery-by-email is available.
-      nav('/adicionar-email', { replace: true, state: { next } })
+      if (me.needs_email) nav('/adicionar-email', { replace: true })
+      else nav(next ?? '/', { replace: true })
     } catch (err) {
       setErro((err as Error).message)
     } finally {
@@ -49,6 +48,10 @@ export default function Login() {
       </form>
       <p className="link"><Link to="/recuperar">Esqueceu a palavra-passe?</Link></p>
       <p className="link">Não tem conta? <Link to="/registar">Registar</Link></p>
+      <p className="cookie-note">
+        Este site usa apenas um cookie essencial para manter a sua sessão
+        iniciada. Sem cookies de publicidade ou rastreio.
+      </p>
     </div>
   )
 }

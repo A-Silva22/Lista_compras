@@ -10,6 +10,7 @@ export function Modal({ open, onClose, title, children }: {
   return (
     <div className="modal-overlay open" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal" role="dialog" aria-modal="true">
+        <button className="modal-x" aria-label="Fechar" onClick={onClose}>×</button>
         <h3>{title}</h3>
         {children}
       </div>

@@ -130,6 +130,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/login", post(handlers::api::login))
         .route("/api/register", post(handlers::api::register))
         .route("/api/email", post(handlers::api::set_email))
+        .route("/api/username", post(handlers::api::change_username))
         .route("/api/logout", post(handlers::api::logout))
         .route("/api/password/recover", post(handlers::api::recover))
         .route("/api/password/reset", post(handlers::api::reset))

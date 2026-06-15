@@ -12,10 +12,10 @@ import PublicLink from './pages/PublicLink'
 function PublicOnly({ children }: { children: ReactNode }) {
   const { me, loading } = useAuth()
   if (loading) return <div className="centered">A carregar…</div>
-  // Authenticated users always pass through the email step: it prompts for an
-  // email when missing, otherwise shows the "recover by email" message. This
-  // also matches Login's post-submit navigation, avoiding a redirect race.
-  if (me) return <Navigate to="/adicionar-email" replace />
+  if (me) {
+    if (me.needs_email) return <Navigate to="/adicionar-email" replace />
+    return <Navigate to="/" replace />
+  }
   return <>{children}</>
 }
 

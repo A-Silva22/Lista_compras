@@ -276,6 +276,49 @@ pub async fn change_password(
     (StatusCode::NO_CONTENT, ()).into_response()
 }
 
+// ──────── /api/username ────────
+
+#[derive(Deserialize)]
+pub struct ChangeUsernameBody {
+    pub username: String,
+}
+
+pub async fn change_username(
+    State(state): State<AppState>,
+    session: Session,
+    Json(body): Json<ChangeUsernameBody>,
+) -> Response {
+    let mut user = match auth::current(&session).await {
+        Some(u) => u,
+        None => return err(StatusCode::UNAUTHORIZED, "not authenticated"),
+    };
+    let username = body.username.trim();
+    if username.is_empty() {
+        return err(StatusCode::BAD_REQUEST, "Introduza um nome de utilizador.");
+    }
+    if username.len() > 150 {
+        return err(StatusCode::BAD_REQUEST, "Nome demasiado longo.");
+    }
+    if username == user.username {
+        return ok_user(&user).into_response();
+    }
+    match state.db.username_taken_by_other(username, user.id).await {
+        Ok(true) => return err(StatusCode::CONFLICT, "Este nome de utilizador já existe."),
+        Err(e) => {
+            tracing::error!("username_taken_by_other: {:?}", e);
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erro interno.");
+        }
+        Ok(false) => {}
+    }
+    if let Err(e) = state.db.update_username(user.id, username).await {
+        tracing::error!("update_username: {:?}", e);
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "Erro ao gravar.");
+    }
+    user.username = username.to_owned();
+    let _ = auth::login(&session, &user).await;
+    ok_user(&user).into_response()
+}
+
 // ──────── /api/logout ────────
 
 pub async fn logout(session: Session) -> Response {
