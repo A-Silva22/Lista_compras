@@ -1,6 +1,9 @@
 # ListaIsto.
 
-A collaborative shopping list web application built with **Django** and **MySQL**, containerized with **Docker Compose** and served via **Caddy** with HTTPS support.
+A collaborative shopping list web application with a **Rust** (Axum) backend, a
+**React + TypeScript** (Vite) single-page frontend, a **MariaDB** database,
+containerized with **Docker Compose** and served via **Caddy** with automatic
+HTTPS.
 
 ---
 
@@ -8,29 +11,52 @@ A collaborative shopping list web application built with **Django** and **MySQL*
 
 **ListaIsto.** is a shopping list management app with two sections per list:
 
-- **Pantry** — Items available at home
-- **To Buy** — Items marked for purchase
+- **Pantry** (*Despensa*) — items available at home
+- **To Buy** (*A comprar*) — items marked for purchase
 
 ### Features
 
-- **Multiple lists** — Create, rename, delete, and switch between lists
-- **Clone lists** — Duplicate any list (including all items) with one click
-- **List sharing** — Share lists with other registered users for real-time collaboration
-- **Link sharing** — Generate temporary public links with granular permissions (add, edit, delete, toggle)
-- **Shared list popup** — When logging in via a shared link, a popup asks if you want to add the list to your collection
-- **Add items** with name and quantity (default: `1x`)
-- **Edit** name and quantity of any item
-- **Delete** items with confirmation
-- **Checkbox** — Checking a pantry item moves it to "To Buy"; unchecking returns it to the pantry
-- **Search** — Magnifying glass icon in the bottom bar toggles search mode, filtering items in real-time across both lists
-- **Race-condition safe** — When two users click the same item simultaneously, the action is idempotent (both move it to the same destination instead of toggling back and forth)
-- **Real-time updates** — Automatic polling for changes made by other users
-- **User authentication** — Registration, login, and profile management
-- **Admin panel** — Django admin at `/admin/` for managing users, lists, items, and shares
-- Support for **special characters** and long text
-- **Dark mode** UI, modern and optimized for **mobile devices**
-- **PWA support** — Installable as a Progressive Web App with proper icons and manifest
-- **Custom favicon** with SVG, PNG, and ICO formats for sharp display across all browsers
+- **Multiple lists** — create, delete, and switch between lists
+- **List sharing** — share a list with another registered user for collaboration
+- **Link sharing** — generate temporary public links with granular permissions
+  (add, edit, delete, toggle) and an expiry date
+- **Public link view** — open a shared link without an account; logged-in users
+  can stash the shared list into their own collection
+- **Add items** with name and quantity (default: `1`)
+- **Edit** name and quantity, **delete** with confirmation
+- **Toggle** — checking a pantry item moves it to "To Buy" and back
+- **Quantity stepper** — increment/decrement numeric quantities
+- **Search / autocomplete** — suggestions across the user's lists
+- **Race-condition safe** — toggles send an explicit destination, so concurrent
+  clicks are idempotent
+- **Authentication** — registration, login, change password
+- **Email association** — users without an email are asked once for one; it is
+  stored in the app-owned `user_email` table
+- **Password recovery by email** — single-use, 1-hour reset link sent via SMTP
+- **Dark-mode** UI, optimized for mobile
+- **PWA support** — installable with icons and manifest
+
+---
+
+## Architecture
+
+```
+Browser ──HTTPS──▶ Caddy ─┬─ /api/*  ──reverse_proxy──▶ Rust backend (axum, :8766)
+                          └─ /*      ── serves the React SPA (static files)
+                                          Rust ──sqlx──▶ MariaDB (:3306)
+```
+
+- **frontend/** — React + TypeScript + Vite SPA. Built to `dist/` and baked into
+  the Caddy image (`Dockerfile.caddy`); calls the backend over `/api/*`.
+- **rust_backend/** — Axum + `sqlx` (MariaDB), `tower-sessions` for the
+  `rust_sid` session cookie, and `lettre` for SMTP. On boot it runs
+  `ensure_schema` (`CREATE TABLE IF NOT EXISTS …`) so it owns the full schema
+  and needs no external migration step.
+- **db** — MariaDB. Tables: `auth_user`, `compras_lista`, `compras_artigo`,
+  `compras_listapartilha`, `compras_linkpartilha`, plus the app-owned
+  `user_email` and `password_reset`.
+- **caddy** — reverse proxy: serves the SPA and proxies `/api/*` to the Rust
+  backend; handles HTTPS.
 
 ---
 
@@ -72,15 +98,12 @@ A collaborative shopping list web application built with **Django** and **MySQL*
 ### Contacts & Logout Menu
 ![Contacts Logout](images_site_ListaIsto/10_opçoes_contacto_logout.png)
 
-### Clone List
-![Clone List](images_site_ListaIsto/13_clonar_lista.png)
-
 ---
 
 ## Requirements
 
 - Docker & Docker Compose
-- A `.env` file with database credentials and Django secret key
+- A `.env` file (copy from `.env.example`) with database + SMTP credentials
 
 ---
 
@@ -88,29 +111,27 @@ A collaborative shopping list web application built with **Django** and **MySQL*
 
 ```
 lista_compras/
-├── compras/                        # Main Django app
-│   ├── migrations/                 # Database migrations
-│   ├── templates/compras/
-│   │   ├── index.html              # Main template (authenticated UI)
-│   │   ├── entrar.html             # Login page
-│   │   ├── registar.html           # Registration page
-│   │   └── link.html               # Public shared link view
-│   ├── static/compras/             # Static files (logo, favicons)
-│   ├── models.py                   # Models (Lista, Artigo, ListaPartilha, LinkPartilha)
-│   ├── views.py                    # Views (CRUD, sharing, auth, clone)
-│   ├── urls.py                     # App routes
-│   ├── backends.py                 # Custom auth backend
-│   └── admin.py
-├── lista_compras/                  # Django project settings
-│   ├── settings.py                 # Settings (DB, apps, middleware)
-│   ├── urls.py                     # Root URL config
-│   ├── wsgi.py
-│   └── asgi.py
-├── Dockerfile                      # Web service container
-├── Caddyfile                       # Caddy reverse proxy config
-├── docker-compose.yml              # Multi-service orchestration
-├── requirements.txt                # Python dependencies
-└── README.md                       # This documentation
+├── frontend/                 # React + TypeScript + Vite SPA
+│   ├── src/
+│   │   ├── pages/            # Login, Register, AddEmail, Recover, ResetPassword, Home, PublicLink
+│   │   ├── api.ts           # Typed client for /api/*
+│   │   └── auth.tsx         # Auth context + route guards
+│   └── package.json
+├── rust_backend/             # Axum backend
+│   ├── src/
+│   │   ├── main.rs          # Router, sessions, startup (ensure_schema)
+│   │   ├── db.rs            # sqlx queries + schema ownership
+│   │   ├── handlers/        # /api/* + server-rendered handlers
+│   │   ├── hashing.rs      # Django-compatible PBKDF2 + modern hashing
+│   │   └── mailer.rs       # SMTP (lettre)
+│   ├── Cargo.toml
+│   └── Dockerfile
+├── tests_e2e/                # Playwright end-to-end tests
+├── Caddyfile                 # Reverse proxy + SPA serving
+├── Dockerfile.caddy          # Builds the SPA and bakes it into Caddy
+├── docker-compose.yml        # db + rust + caddy
+├── .env.example              # Environment template
+└── README.md
 ```
 
 ---
@@ -126,129 +147,95 @@ cd lista_compras/
 
 ### 2. Create a `.env` file
 
-```env
-SECRET_KEY=your-django-secret-key
-DB_NAME=lista_compras
-DB_USER=root
-DB_PASSWORD=your-db-password
-DB_HOST=db
-DB_PORT=3306
+```bash
+cp .env.example .env
+# then edit DB_* and EMAIL_* with real values
 ```
 
 ### 3. Start the application
 
 ```bash
-sudo docker compose up -d --build
+docker compose up -d --build
 ```
 
 This starts three services:
-- **db** — MySQL database
-- **web** — Django app served by Gunicorn + WhiteNoise for static files
-- **caddy** — Reverse proxy with automatic HTTPS
 
-### 4. Create an admin superuser
+- **db** — MariaDB
+- **rust** — Axum backend (owns the schema; creates tables on first boot)
+- **caddy** — reverse proxy serving the React SPA + `/api/*` over HTTPS
 
-```bash
-sudo docker compose exec web python manage.py createsuperuser
-```
-
-### 5. Access the app
+### 4. Access the app
 
 - **Local:** http://localhost
 - **Production:** https://your-domain.com (configured in `Caddyfile`)
-- **Admin panel:** https://your-domain.com/admin/
+
+User accounts are created through the in-app **Register** page; there is no
+separate admin console.
 
 ---
 
-## Data Models
+## Data Models (tables)
 
-### Lista (List)
+| Table                    | Purpose                                                        |
+|--------------------------|----------------------------------------------------------------|
+| `auth_user`              | User accounts (id, username, password hash, flags)             |
+| `user_email`             | App-owned email per user (decoupled from `auth_user.email`)    |
+| `password_reset`         | Single-use, time-limited password-reset tokens                 |
+| `compras_lista`          | Lists (`nome`, `dono_id`, `criado_em`)                         |
+| `compras_artigo`         | Items (`nome`, `quantidade`, `comprar`, timestamps, `lista_id`)|
+| `compras_listapartilha`  | List shared with a user (`lista_id`, `utilizador_id`)          |
+| `compras_linkpartilha`   | Public share link (`token`, `expira_em`, permission flags)     |
 
-| Field       | Type           | Description                        |
-|-------------|----------------|------------------------------------|
-| `id`        | BigAutoField   | Primary key (auto)                 |
-| `nome`      | CharField(200) | List name                          |
-| `dono`      | ForeignKey     | Owner (User)                       |
-| `criado_em` | DateTimeField  | Creation date (auto)               |
-
-### Artigo (Item)
-
-| Field       | Type           | Description                                  |
-|-------------|----------------|----------------------------------------------|
-| `id`        | BigAutoField   | Primary key (auto)                           |
-| `lista`     | ForeignKey     | Parent list                                  |
-| `nome`      | CharField(500) | Item name                                    |
-| `quantidade`| CharField(50)  | Quantity (default: `1x`)                     |
-| `comprar`   | BooleanField   | `False` = pantry, `True` = to buy            |
-| `criado_em` | DateTimeField  | Creation date (auto)                         |
-| `movido_em` | DateTimeField  | Last moved date (auto)                       |
-
-### ListaPartilha (List Share)
-
-| Field        | Type          | Description                        |
-|--------------|---------------|------------------------------------|
-| `lista`      | ForeignKey    | Shared list                        |
-| `utilizador` | ForeignKey    | User with access                   |
-| `criado_em`  | DateTimeField | Share date (auto)                  |
-
-### LinkPartilha (Share Link)
-
-| Field           | Type          | Description                        |
-|-----------------|---------------|------------------------------------|
-| `lista`         | ForeignKey    | Linked list                        |
-| `token`         | UUIDField     | Unique public token                |
-| `expira_em`     | DateTimeField | Expiration date                    |
-| `pode_adicionar`| BooleanField  | Can add items                      |
-| `pode_editar`   | BooleanField  | Can edit items                     |
-| `pode_apagar`   | BooleanField  | Can delete items                   |
-| `pode_toggle`   | BooleanField  | Can toggle items                   |
+Passwords are stored with a hash compatible with the legacy Django format and
+are transparently upgraded on next login.
 
 ---
 
-## Routes (URLs)
+## Key API Routes (`/api/*`, JSON)
 
-| URL                                      | Method | Description                        |
-|------------------------------------------|--------|------------------------------------|
-| `/`                                      | GET    | Main page                          |
-| `/registar/`                             | POST   | Register new user                  |
-| `/entrar/`                               | POST   | Login                              |
-| `/sair/`                                 | POST   | Logout                             |
-| `/lista/criar/`                          | POST   | Create new list                    |
-| `/lista/<id>/selecionar/`                | GET    | Switch active list                 |
-| `/lista/<id>/renomear/`                  | POST   | Rename list                        |
-| `/lista/<id>/apagar/`                    | POST   | Delete list                        |
-| `/lista/<id>/clonar/`                    | POST   | Clone list with all items          |
-| `/lista/<id>/partilhar/`                 | POST   | Share list with a user             |
-| `/lista/<id>/link/criar/`                | POST   | Create a public share link         |
-| `/responder-link/`                       | POST   | Accept/reject shared list popup    |
-| `/adicionar/`                            | POST   | Add item                           |
-| `/editar/<id>/`                          | POST   | Edit item                          |
-| `/apagar/<id>/`                          | POST   | Delete item                        |
-| `/toggle/<id>/`                          | POST   | Move item to pantry or to-buy (explicit destination) |
-| `/link/<token>/`                         | GET    | View list via public link          |
-| `/admin/`                                | GET    | Django admin panel                 |
+| Route                              | Method | Description                         |
+|------------------------------------|--------|-------------------------------------|
+| `/api/me`                          | GET    | Current session user                |
+| `/api/register`                    | POST   | Create account                      |
+| `/api/login`                       | POST   | Log in                              |
+| `/api/logout`                      | POST   | Log out                             |
+| `/api/email`                       | POST   | Associate an email                  |
+| `/api/password/recover`            | POST   | Send a reset link by email          |
+| `/api/password/reset`              | POST   | Set a new password with a token     |
+| `/api/password/reset/:token`       | GET    | Validate a reset token              |
+| `/api/password/change`             | POST   | Change password (logged in)         |
+| `/api/lists`                       | GET/POST | List/create lists                 |
+| `/api/lists/:id`                   | GET/DELETE | List detail / delete            |
+| `/api/lists/:id/select`            | POST   | Switch active list                  |
+| `/api/lists/:id/items`             | POST   | Add item                            |
+| `/api/lists/:id/items/:iid`        | POST/DELETE | Edit / delete item             |
+| `/api/lists/:id/items/:iid/toggle` | POST   | Move pantry ⇄ to-buy                |
+| `/api/lists/:id/share`             | POST   | Share with a user                   |
+| `/api/lists/:id/links`             | POST   | Create a public link                |
+| `/api/public/:token`               | GET    | View a list via public link         |
 
 ---
 
 ## Tech Stack
 
-- **Backend:** Django 4.2, Gunicorn, WhiteNoise
-- **Database:** MySQL (mysqlclient)
-- **Frontend:** HTML5, CSS3 (dark theme), vanilla JavaScript
+- **Backend:** Rust — Axum, `sqlx` (MariaDB), `tower-sessions`, `lettre` (SMTP)
+- **Frontend:** React + TypeScript, Vite, React Router
+- **Database:** MariaDB 10.11
 - **Containerization:** Docker, Docker Compose
-- **Reverse Proxy:** Caddy (automatic HTTPS)
-- **Python:** 3.13
+- **Reverse proxy:** Caddy (automatic HTTPS)
+- **Testing:** Playwright (`tests_e2e/`)
 
 ---
 
 ## Notes
 
-- The quantity field accepts free text (e.g., `2x`, `500g`, `1L`, `3 units`)
-- Item names support special characters, accents, and emojis
-- Lists are sorted by most recent first in the hamburger menu
-- Shared lists display a people icon next to the list name
-- Public share links can be configured with an expiration date and granular permissions
-- The clone feature creates an independent copy — changes to the clone do not affect the original
-- The toggle action sends an explicit destination (`destino=despensa` or `destino=comprar`) to prevent race conditions when multiple users click the same item simultaneously
-- The admin superuser must be created via `docker compose exec web python manage.py createsuperuser` (not via the frontend, since the frontend SHA-256 hashes passwords)
-- After changing static files, run `docker compose exec web python manage.py collectstatic --noinput`
+- The quantity field accepts free text (e.g., `2`, `500g`, `1L`).
+- Item names support accents, special characters, and emojis.
+- Toggles send an explicit destination (`comprar`/`despensa`) so concurrent
+  clicks by multiple users are idempotent.
+- Emails live in the app-owned `user_email` table; existing emails are migrated
+  out of `auth_user` automatically on first boot of the Rust backend.
+- Password recovery sends a single-use link valid for one hour, built from
+  `APP_BASE_URL`.
+- The previous Django implementation is preserved on the `ListaCompras_django`
+  branch.
