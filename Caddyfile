@@ -13,6 +13,12 @@
 	}
 	handle {
 		root * /srv
+		# Content-hashed build assets can be cached forever; HTML (and SPA
+		# fallback routes) must revalidate so a new deploy is picked up at once.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@notassets not path /assets/*
+		header @notassets Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}
