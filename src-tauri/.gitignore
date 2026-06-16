@@ -5,3 +5,6 @@
 # Signing keystores — NEVER commit
 *.jks
 *.keystore
+
+# npm
+node_modules
