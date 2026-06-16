@@ -51,6 +51,3 @@ metodo_pagemento.txt\
 
 # Pytest
 .pytest_cache/
-
-# Local-only tooling (never deploy to the server)
-/scripts/
