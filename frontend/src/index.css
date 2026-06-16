@@ -20,7 +20,9 @@ body {
 }
 /* flow-root contains the auth-card's vertical margin so it doesn't collapse
    through and add an unnecessary scroll past 100vh on the login page. */
-#root { display: flow-root; }
+/* Keep content clear of the device status bar / notch (Tauri webview draws
+   edge-to-edge). Zero in a normal browser. */
+#root { display: flow-root; padding-top: env(safe-area-inset-top, 0px); }
 .centered { padding: 40px; color: #888; text-align: center; }
 
 /* ── Auth cards ── */
@@ -54,7 +56,7 @@ html[data-theme="light"] .cookie-note { color: #999; border-top-color: #e2e2e6; 
 /* ── App layout ── */
 /* Bottom padding clears the fixed add-bar — only on app pages (.container),
    not the auth pages, which otherwise get a pointless scroll. */
-.container { max-width: 600px; margin: 0 auto; padding: 16px 12px 90px; }
+.container { max-width: 600px; margin: 0 auto; padding: 16px 12px calc(90px + env(safe-area-inset-bottom, 0px)); }
 .list-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 16px; }
 
 .hamburger-wrapper, .list-menu-wrapper, .user-menu-wrapper { position: relative; flex-shrink: 0; }
@@ -179,7 +181,7 @@ details.section-collapsible:not([open]) > summary .caret { transform: rotate(-90
 .section-collapsible > summary .caret { display: inline-block; transition: transform .15s; color: #666; font-size: .85rem; }
 
 /* ── Add bar ── */
-.add-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a1a; border-top: 1px solid #252525; padding: 10px 12px; z-index: 500; }
+.add-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a1a; border-top: 1px solid #252525; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 500; }
 .add-form { display: flex; gap: 8px; align-items: center; max-width: 600px; margin: 0 auto; }
 .add-form input[type=text] { flex: 1 1 auto; min-width: 0; padding: 12px 14px; border: 1px solid #333; border-radius: 10px; background: #222; color: #ccc; font-size: 1.05rem; outline: none; font-family: inherit; }
 .add-form input[type=text]:focus { border-color: #555; }
